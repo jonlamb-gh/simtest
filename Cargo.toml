@@ -5,3 +5,4 @@ authors = ["Jon Lamb"]
 edition = "2018"
 
 [dependencies]
+nphysics3d = "0.9"
