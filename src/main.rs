@@ -1,11 +1,16 @@
 use nalgebra as na;
 
 mod box_node;
+mod config;
+mod lag_engine;
 mod node;
+mod platform;
 
 use crate::box_node::BoxNode;
+use crate::config::COLLIDER_MARGIN;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::node::Node;
+use crate::platform::Platform;
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
@@ -13,16 +18,13 @@ use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::window::{State, Window};
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::object::{BodyHandle, Material};
-use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
-
-const COLLIDER_MARGIN: f32 = 0.01;
 
 struct AppState {
     arc_ball: ArcBall,
     world: World<f32>,
     ground: Node,
-    actor: Node,
+    platform: Platform,
 }
 
 impl AppState {
@@ -32,7 +34,7 @@ impl AppState {
         let mut world = World::new();
         world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
 
-        let ground_size = Vector3::new(15.0, 1.0, 15.0);
+        let ground_size = Vector3::new(50.0, 1.0, 50.0);
         let ground_shape =
             ShapeHandle::new(Cuboid::new(ground_size - Vector3::repeat(COLLIDER_MARGIN)));
         let ground_pos = Isometry3::new(Vector3::y() * -ground_size.y, na::zero());
@@ -44,36 +46,6 @@ impl AppState {
             ground_pos,
             Material::default(),
         );
-
-        let cube_rad = 1.0;
-        let geom = ShapeHandle::new(Cuboid::new(Vector3::repeat(cube_rad - COLLIDER_MARGIN)));
-        let inertia = geom.inertia(1.0);
-        let center_of_mass = geom.center_of_mass();
-        let pos = Isometry3::new(Vector3::new(0.0, 5.0, 0.0), na::zero());
-        let handle = world.add_rigid_body(pos, inertia, center_of_mass);
-        let box_ch = world.add_collider(
-            COLLIDER_MARGIN,
-            geom.clone(),
-            handle,
-            Isometry3::identity(),
-            Material::default(),
-        );
-
-        let object = box_ch;
-
-        let color = Point3::new(1.0, 0.0, 0.0);
-
-        let shape = geom.as_shape::<Cuboid<f32>>().unwrap();
-
-        let margin = world.collider(object).unwrap().data().margin();
-        let rx = shape.half_extents().x + margin;
-        let ry = shape.half_extents().y + margin;
-        let rz = shape.half_extents().z + margin;
-        let delta = na::one();
-
-        let actor = Node::Box(BoxNode::new(
-            object, &mut world, delta, rx, ry, rz, color, window,
-        ));
 
         let object = ground_ch;
 
@@ -91,11 +63,13 @@ impl AppState {
             object, &mut world, delta, rx, ry, rz, color, window,
         ));
 
+        let platform = Platform::new(Vector3::new(0.0, 5.0, 0.0), window, &mut world);
+
         AppState {
             arc_ball,
             world,
             ground,
-            actor,
+            platform,
         }
     }
 }
@@ -115,7 +89,7 @@ impl State for AppState {
         self.world.step();
 
         self.ground.update(&self.world);
-        self.actor.update(&self.world);
+        self.platform.update(&self.world);
     }
 }
 
