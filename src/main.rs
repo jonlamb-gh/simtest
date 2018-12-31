@@ -11,6 +11,7 @@ use crate::config::COLLIDER_MARGIN;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::{Engine, Platform};
+use gilrs::{ev::AxisOrBtn, ev::Code, Axis, Button, Event, Gilrs};
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
@@ -20,7 +21,6 @@ use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
-use gilrs::{Gilrs, Axis, Button, Event};
 
 struct AppState {
     cm: Gilrs,
@@ -99,23 +99,80 @@ impl State for AppState {
                 // Do other things with event
             }
 
-            if let Some(input) = self.cm.get(0) {
-                let state = input.state();
+            let max = 50.0;
+            let max_diff = 0.6;
 
-                // kind 3 - EV_ABS
-                // code 2 - ABS_Z
-                // EvCode - AXIS_LEFTZ
-                // Axis::LeftZ
-                //let value = state.value(Axis::LeftZ.into());
-                let value = input.value(Axis::LeftZ);
+            // TODO - move to state
+            let mut thrust_left = 0.0;
+            let mut thrust_right = 0.0;
+            let mut balance_left = 0.0;
+            let mut balance_right = 0.0;
 
-                //println!("{:#?}", state);
-                println!("{:#?}", value);
+            if let Some(input) = self.cm.gamepad(0) {
+                //let state = input.state();
+
+                if let Some(btn) = input.button_data(Button::LeftTrigger2) {
+                    thrust_left = max * btn.value();
+                }
+
+                if let Some(btn) = input.button_data(Button::RightTrigger2) {
+                    thrust_right = max * btn.value();
+                }
+
+                balance_left = input.value(Axis::LeftStickY);
+                balance_right = input.value(Axis::RightStickY);
+
+                /*
+                for (code, axis) in state.axes() {
+                    println!("{:#?}", input.axis_or_btn_name(code));
+                }
+                */
+
+                /*
+                for (code, btn) in state.buttons() {
+                    println!("{:#?}", input.axis_or_btn_name(code));
+
+                    if let Some(axis_or_btn) = input.axis_or_btn_name(code) {
+                        match axis_or_btn {
+                            AxisOrBtn::Axis(a) => {},
+                            AxisOrBtn::Btn(b) => {
+                                if b == Button:: RightTrigger2 {
+                                    thrust_left = max * btn.value();
+                                } else if b == Button:: LeftTrigger2 {
+                                    thrust_right = max * btn.value();
+                                }
+                            }
+                        }
+                    }
+                }
+                */
             }
 
-            // TODO
-            let f = Force::new(Vector3::new(10.0, 12.0, 0.0), na::zero());
-            self.platform.set_force(Engine::E0, f, &mut self.world);
+            let scale_left = map_range((-1.0, 1.0), (-max_diff, max_diff), balance_left);
+
+            let scale_right = map_range((-1.0, 1.0), (-max_diff, max_diff), balance_right);
+
+            let diff_left = scale_left * thrust_left;
+            let diff_right = scale_right * thrust_right;
+
+            // TODO - re-order
+            // left is e2, e3
+            // right is e0, e1
+            let f_e0 = Force::new(
+                Vector3::new(0.0, thrust_right - diff_right, 0.0),
+                na::zero(),
+            );
+            let f_e1 = Force::new(
+                Vector3::new(0.0, thrust_right + diff_right, 0.0),
+                na::zero(),
+            );
+            let f_e2 = Force::new(Vector3::new(0.0, thrust_left - diff_left, 0.0), na::zero());
+            let f_e3 = Force::new(Vector3::new(0.0, thrust_left + diff_left, 0.0), na::zero());
+
+            self.platform.set_force(Engine::E0, f_e0, &mut self.world);
+            self.platform.set_force(Engine::E1, f_e1, &mut self.world);
+            self.platform.set_force(Engine::E2, f_e2, &mut self.world);
+            self.platform.set_force(Engine::E3, f_e3, &mut self.world);
 
             self.world.step();
 

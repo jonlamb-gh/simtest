@@ -63,6 +63,7 @@ impl Platform {
 
         let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
 
+        // TODO - re-order
         let e0 = LAGEngine::new(Vector3::new(rx, 0.0, rz), root_body, window, world);
         let e1 = LAGEngine::new(Vector3::new(-rx, 0.0, rz), root_body, window, world);
         let e2 = LAGEngine::new(Vector3::new(rx, 0.0, -rz), root_body, window, world);
