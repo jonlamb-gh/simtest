@@ -10,11 +10,12 @@ nphysics3d = { git = "https://github.com/jonlamb-gh/nphysics.git", branch = "fix
 nalgebra = "0.16"
 kiss3d = "0.17"
 ncollide3d = "0.17"
+gilrs = "0.6"
 
-[dependencies.stick]
-version = "0.4"
-optional = true
+#[dependencies.stick]
+#version = "0.4"
+#optional = true
 
-[features]
-default = ["jstick-input"]
-jstick-input = ["stick"]
+#[features]
+#default = ["jstick-input"]
+#jstick-input = ["stick"]

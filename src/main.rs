@@ -20,10 +20,10 @@ use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
-use stick::ControllerManager;
+use gilrs::{Gilrs, Axis, Button, Event};
 
 struct AppState {
-    cm: ControllerManager,
+    cm: Gilrs,
     arc_ball: ArcBall,
     world: World<f32>,
     ground: Node,
@@ -32,7 +32,7 @@ struct AppState {
 
 impl AppState {
     pub fn new(window: &mut Window) -> Self {
-        let cm = ControllerManager::new(Vec::new());
+        let cm = Gilrs::new().unwrap();
 
         let arc_ball = ArcBall::new(Point3::new(10.0, 10.0, 10.0), Point3::new(0.0, 0.0, 0.0));
 
@@ -92,10 +92,25 @@ impl State for AppState {
     }
 
     fn step(&mut self, win: &mut Window) {
-        // TODO - fix panic on ESC
         if !win.is_closed() && !win.should_close() {
-            while let Some((js_id, event)) = self.cm.update() {
-                println!("{}: {}", js_id, event);
+            while let Some(ev) = self.cm.next_event() {
+                self.cm.update(&ev);
+                // TODO
+                // Do other things with event
+            }
+
+            if let Some(input) = self.cm.get(0) {
+                let state = input.state();
+
+                // kind 3 - EV_ABS
+                // code 2 - ABS_Z
+                // EvCode - AXIS_LEFTZ
+                // Axis::LeftZ
+                //let value = state.value(Axis::LeftZ.into());
+                let value = input.value(Axis::LeftZ);
+
+                //println!("{:#?}", state);
+                println!("{:#?}", value);
             }
 
             // TODO
