@@ -11,7 +11,7 @@ use crate::config::COLLIDER_MARGIN;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::{Engine, Platform};
-use gilrs::{ev::AxisOrBtn, ev::Code, Axis, Button, Event, Gilrs};
+use gilrs::{Axis, Button, Gilrs};
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
@@ -109,7 +109,9 @@ impl State for AppState {
             let mut balance_right = 0.0;
 
             if let Some(input) = self.cm.gamepad(0) {
-                //let state = input.state();
+                if input.is_pressed(Button::West) {
+                    // TODO - reset platform
+                }
 
                 if let Some(btn) = input.button_data(Button::LeftTrigger2) {
                     thrust_left = max * btn.value();
@@ -123,27 +125,16 @@ impl State for AppState {
                 balance_right = input.value(Axis::RightStickY);
 
                 /*
+                let state = input.state();
                 for (code, axis) in state.axes() {
                     println!("{:#?}", input.axis_or_btn_name(code));
                 }
                 */
 
                 /*
+                let state = input.state();
                 for (code, btn) in state.buttons() {
                     println!("{:#?}", input.axis_or_btn_name(code));
-
-                    if let Some(axis_or_btn) = input.axis_or_btn_name(code) {
-                        match axis_or_btn {
-                            AxisOrBtn::Axis(a) => {},
-                            AxisOrBtn::Btn(b) => {
-                                if b == Button:: RightTrigger2 {
-                                    thrust_left = max * btn.value();
-                                } else if b == Button:: LeftTrigger2 {
-                                    thrust_right = max * btn.value();
-                                }
-                            }
-                        }
-                    }
                 }
                 */
             }
