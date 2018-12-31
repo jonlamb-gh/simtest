@@ -20,8 +20,10 @@ use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
+use stick::ControllerManager;
 
 struct AppState {
+    cm: ControllerManager,
     arc_ball: ArcBall,
     world: World<f32>,
     ground: Node,
@@ -30,6 +32,8 @@ struct AppState {
 
 impl AppState {
     pub fn new(window: &mut Window) -> Self {
+        let cm = ControllerManager::new(Vec::new());
+
         let arc_ball = ArcBall::new(Point3::new(10.0, 10.0, 10.0), Point3::new(0.0, 0.0, 0.0));
 
         let mut world = World::new();
@@ -67,6 +71,7 @@ impl AppState {
         let platform = Platform::new(Vector3::new(0.0, 5.0, 0.0), window, &mut world);
 
         AppState {
+            cm,
             arc_ball,
             world,
             ground,
@@ -86,16 +91,27 @@ impl State for AppState {
         (Some(&mut self.arc_ball), None, None)
     }
 
-    fn step(&mut self, _: &mut Window) {
-        // TODO
-        let f = Force::new(Vector3::new(10.0, 12.0, 0.0), na::zero());
-        self.platform.set_force(Engine::E0, f, &mut self.world);
+    fn step(&mut self, win: &mut Window) {
+        // TODO - fix panic on ESC
+        if !win.is_closed() && !win.should_close() {
+            while let Some((js_id, event)) = self.cm.update() {
+                println!("{}: {}", js_id, event);
+            }
 
-        self.world.step();
+            // TODO
+            let f = Force::new(Vector3::new(10.0, 12.0, 0.0), na::zero());
+            self.platform.set_force(Engine::E0, f, &mut self.world);
 
-        self.ground.update(&self.world);
-        self.platform.update(&self.world);
+            self.world.step();
+
+            self.ground.update(&self.world);
+            self.platform.update(&self.world);
+        }
     }
+}
+
+fn map_range(from_range: (f32, f32), to_range: (f32, f32), s: f32) -> f32 {
+    to_range.0 + (s - from_range.0) * (to_range.1 - to_range.0) / (from_range.1 - from_range.0)
 }
 
 fn main() {
