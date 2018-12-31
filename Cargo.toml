@@ -5,7 +5,16 @@ authors = ["Jon Lamb"]
 edition = "2018"
 
 [dependencies]
-nphysics3d = "0.9"
+#nphysics3d = "0.9"
+nphysics3d = { git = "https://github.com/jonlamb-gh/nphysics.git", branch = "fix-multibody-force" }
 nalgebra = "0.16"
 kiss3d = "0.17"
 ncollide3d = "0.17"
+
+[dependencies.stick]
+version = "0.4"
+optional = true
+
+[features]
+default = ["jstick-input"]
+jstick-input = ["stick"]

@@ -10,16 +10,23 @@ use crate::na::{Isometry3, Point3, Vector3};
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::joint::FreeJoint;
+use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
+use std::collections::HashMap;
 
 pub struct Platform {
     box_node: BoxNode,
-    e0: LAGEngine,
-    e1: LAGEngine,
-    e2: LAGEngine,
-    e3: LAGEngine,
+    engines: HashMap<Engine, LAGEngine>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Engine {
+    E0,
+    E1,
+    E2,
+    E3,
 }
 
 impl Platform {
@@ -61,11 +68,26 @@ impl Platform {
         let e2 = LAGEngine::new(Vector3::new(rx, 0.0, -rz), root_body, window, world);
         let e3 = LAGEngine::new(Vector3::new(-rx, 0.0, -rz), root_body, window, world);
 
-        Platform { box_node, e0, e1, e2, e3 }
+        let mut engines = HashMap::new();
+        engines.insert(Engine::E0, e0);
+        engines.insert(Engine::E1, e1);
+        engines.insert(Engine::E2, e2);
+        engines.insert(Engine::E3, e3);
+
+        Platform { box_node, engines }
     }
 
     pub fn update(&mut self, world: &World<f32>) {
         self.box_node.update(world);
-        self.e0.update(world);
+
+        for (_, eng) in self.engines.iter_mut() {
+            eng.update(world);
+        }
+    }
+
+    pub fn set_force(&mut self, engine: Engine, force: Force<f32>, world: &mut World<f32>) {
+        if let Some(e) = self.engines.get_mut(&engine) {
+            e.set_force(force, world);
+        }
     }
 }

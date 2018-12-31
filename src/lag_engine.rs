@@ -4,14 +4,21 @@ use crate::na;
 use crate::na::{Isometry3, Point3, Vector3};
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
+use nphysics3d::force_generator::{ForceGenerator, ForceGeneratorHandle};
 use nphysics3d::joint::FixedJoint;
 use nphysics3d::math::Force;
-use nphysics3d::object::{BodyHandle, Material};
+use nphysics3d::object::{BodyHandle, BodySet, Material};
+use nphysics3d::solver::IntegrationParameters;
 use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
 
 pub struct LAGEngine {
-    box_node: BoxNode,
+    force_gen: ForceGeneratorHandle,
+    node: BoxNode,
+}
+
+struct ForceGen {
+    body: BodyHandle,
     force: Force<f32>,
 }
 
@@ -25,7 +32,6 @@ impl LAGEngine {
         let engine_size = Vector3::new(0.1, 0.4, 0.1);
 
         let color = Point3::new(1.0, 0.0, 0.0);
-        let pos = Isometry3::new(pos, na::zero());
         let delta = na::one();
 
         let cuboid = Cuboid::new(engine_size);
@@ -37,7 +43,7 @@ impl LAGEngine {
 
         let body = world.add_multibody_link(
             parent,
-            FixedJoint::new(pos),
+            FixedJoint::new(Isometry3::new(pos, na::zero())),
             na::zero(),
             na::zero(),
             geom.inertia(1.0),
@@ -52,15 +58,43 @@ impl LAGEngine {
             Material::default(),
         );
 
-        let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
+        let node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
+
+        let force_gen = ForceGen {
+            body,
+            force: Force::zero(),
+        };
+
+        let force_gen_handle = world.add_force_generator(force_gen);
 
         LAGEngine {
-            box_node,
-            force: Force::zero(),
+            node,
+            force_gen: force_gen_handle,
         }
     }
 
+    pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
+        let force_gen = world
+            .force_generator_mut(self.force_gen)
+            .downcast_mut::<ForceGen>()
+            .unwrap();
+        force_gen.force = force;
+    }
+
     pub fn update(&mut self, world: &World<f32>) {
-        self.box_node.update(world);
+        self.node.update(world);
+    }
+}
+
+impl ForceGenerator<f32> for ForceGen {
+    fn apply(&mut self, _: &IntegrationParameters<f32>, bodies: &mut BodySet<f32>) -> bool {
+        if bodies.contains(self.body) {
+            let mut part = bodies.body_part_mut(self.body);
+            part.apply_force(&self.force);
+        }
+
+        // If `false` is returned, the physis world will remove
+        // this force generator after this call.
+        true
     }
 }

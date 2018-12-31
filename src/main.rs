@@ -10,13 +10,14 @@ use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::node::Node;
-use crate::platform::Platform;
+use crate::platform::{Engine, Platform};
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::window::{State, Window};
 use ncollide3d::shape::{Cuboid, ShapeHandle};
+use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
 
@@ -86,6 +87,10 @@ impl State for AppState {
     }
 
     fn step(&mut self, _: &mut Window) {
+        // TODO
+        let f = Force::new(Vector3::new(10.0, 12.0, 0.0), na::zero());
+        self.platform.set_force(Engine::E0, f, &mut self.world);
+
         self.world.step();
 
         self.ground.update(&self.world);
