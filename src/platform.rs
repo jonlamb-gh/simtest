@@ -1,6 +1,12 @@
 // TODO
 // - use margin on sizes/ect
 // - move bits to impl, use half_extents()
+//
+// use something like:
+// https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/position_controller_pid.c
+// for example controller
+//
+// use https://crates.io/crates/pid crate
 
 use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
