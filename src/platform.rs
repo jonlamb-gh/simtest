@@ -116,7 +116,7 @@ impl Platform {
         mbody.velocity().clone()
     }
 
-    pub fn get_velocity_setpoint(&self) -> f32 {
+    pub fn get_velocity_setpoint(&self) -> Velocity<f32> {
         self.vel_control.get_setpoint()
     }
 
@@ -129,15 +129,18 @@ impl Platform {
         let _pos = self.position(world);
         let vel = self.velocity(world);
 
-        let thrust = self.vel_control.update(vel.linear.y, desired_vel);
+        let des_vel = Velocity::new(Vector3::new(0.0, desired_vel, 0.0), na::zero());
+
+        let thrust = self.vel_control.update(vel, des_vel);
 
         let control = Control {
             roll_comp: 0.0,
             pitch_comp: 0.0,
-            e0: thrust,
-            e1: thrust,
-            e2: thrust,
-            e3: thrust,
+            yaw_comp: 0.0,
+            e0: thrust.linear.y,
+            e1: thrust.linear.y,
+            e2: thrust.linear.y,
+            e3: thrust.linear.y,
         };
 
         self.power_dist.control_thrust(&control, world);

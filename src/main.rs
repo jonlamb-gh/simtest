@@ -91,6 +91,7 @@ impl AppState {
         let mut text_pos = Point2::new(10.0, 10.0);
 
         let plat_vel = self.platform.velocity(&self.world);
+        let vel_setp = self.platform.get_velocity_setpoint();
         let plat_iso = self.platform.position(&self.world);
         let plat_pos = plat_iso.translation.vector;
         let plat_rot = plat_iso.rotation.euler_angles();
@@ -135,7 +136,10 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("VzDes: {:.3}", self.platform.get_velocity_setpoint(),),
+            &format!(
+                "Velocity Des: {:.3}, {:.3}, {:.3}",
+                vel_setp.linear.x, vel_setp.linear.y, vel_setp.linear.z
+            ),
             &text_pos,
             font_size,
             &Font::default(),

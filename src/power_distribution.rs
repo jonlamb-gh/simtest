@@ -31,6 +31,7 @@ pub enum Engine {
 pub struct Control {
     pub roll_comp: f32,
     pub pitch_comp: f32,
+    pub yaw_comp: f32,
     pub e0: f32,
     pub e1: f32,
     pub e2: f32,
@@ -43,6 +44,7 @@ impl PowerDistribution {
             control: Control {
                 roll_comp: 0.0,
                 pitch_comp: 0.0,
+                yaw_comp: 0.0,
                 e0: 0.0,
                 e1: 0.0,
                 e2: 0.0,
@@ -79,6 +81,7 @@ impl PowerDistribution {
         // TODO
         self.control.roll_comp = control.roll_comp;
         self.control.pitch_comp = control.pitch_comp;
+        self.control.yaw_comp = control.yaw_comp;
 
         self.control.e0 = clamp(control.e0, -THRUST_LIMIT, THRUST_LIMIT);
         self.control.e1 = clamp(control.e1, -THRUST_LIMIT, THRUST_LIMIT);
