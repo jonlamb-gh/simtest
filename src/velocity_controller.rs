@@ -13,8 +13,8 @@ impl VelocityController {
     pub fn new() -> Self {
         // TODO - PID configs
         let kp = 25.0;
-        let ki = 15.0;
-        let kd = 0.1;
+        let ki = 10.0;
+        let kd = 0.0;
         let p_limit = THRUST_LIMIT;
         let i_limit = 15.0;
         let d_limit = 10.0;
