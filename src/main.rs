@@ -5,20 +5,22 @@ mod config;
 mod lag_engine;
 mod node;
 mod platform;
+mod power_distribution;
+mod util;
 
 use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::node::Node;
-use crate::platform::{Engine, Platform};
-use gilrs::{Axis, Button, Gilrs};
+use crate::platform::Platform;
+use crate::util::map_range;
+use gilrs::{Button, Gilrs};
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::window::{State, Window};
 use ncollide3d::shape::{Cuboid, ShapeHandle};
-use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
 
@@ -99,71 +101,29 @@ impl State for AppState {
                 // Do other things with event
             }
 
-            let max = 50.0;
-            let max_diff = 0.6;
-
-            // TODO - move to state
-            let mut thrust_left = 0.0;
-            let mut thrust_right = 0.0;
-            let mut balance_left = 0.0;
-            let mut balance_right = 0.0;
+            let vel_limit = 10.0;
+            let mut vel_pos = 0.0;
+            let mut vel_neg = 0.0;
 
             if let Some(input) = self.cm.gamepad(0) {
                 if input.is_pressed(Button::West) {
-                    // TODO - reset platform
+                    println!("Reseting platform");
+                    self.platform.reset(&mut self.world);
                 }
 
                 if let Some(btn) = input.button_data(Button::LeftTrigger2) {
-                    thrust_left = max * btn.value();
+                    vel_neg = btn.value();
                 }
 
                 if let Some(btn) = input.button_data(Button::RightTrigger2) {
-                    thrust_right = max * btn.value();
+                    vel_pos = btn.value();
                 }
-
-                balance_left = input.value(Axis::LeftStickY);
-                balance_right = input.value(Axis::RightStickY);
-
-                /*
-                let state = input.state();
-                for (code, axis) in state.axes() {
-                    println!("{:#?}", input.axis_or_btn_name(code));
-                }
-                */
-
-                /*
-                let state = input.state();
-                for (code, btn) in state.buttons() {
-                    println!("{:#?}", input.axis_or_btn_name(code));
-                }
-                */
             }
 
-            let scale_left = map_range((-1.0, 1.0), (-max_diff, max_diff), balance_left);
+            let desired_vel = vel_pos - vel_neg;
+            let desired_vel = map_range((-1.0, 1.0), (-vel_limit, vel_limit), desired_vel);
 
-            let scale_right = map_range((-1.0, 1.0), (-max_diff, max_diff), balance_right);
-
-            let diff_left = scale_left * thrust_left;
-            let diff_right = scale_right * thrust_right;
-
-            // TODO - re-order
-            // left is e2, e3
-            // right is e0, e1
-            let f_e0 = Force::new(
-                Vector3::new(0.0, thrust_right - diff_right, 0.0),
-                na::zero(),
-            );
-            let f_e1 = Force::new(
-                Vector3::new(0.0, thrust_right + diff_right, 0.0),
-                na::zero(),
-            );
-            let f_e2 = Force::new(Vector3::new(0.0, thrust_left - diff_left, 0.0), na::zero());
-            let f_e3 = Force::new(Vector3::new(0.0, thrust_left + diff_left, 0.0), na::zero());
-
-            self.platform.set_force(Engine::E0, f_e0, &mut self.world);
-            self.platform.set_force(Engine::E1, f_e1, &mut self.world);
-            self.platform.set_force(Engine::E2, f_e2, &mut self.world);
-            self.platform.set_force(Engine::E3, f_e3, &mut self.world);
+            self.platform.control(desired_vel, &mut self.world);
 
             self.world.step();
 
@@ -171,10 +131,6 @@ impl State for AppState {
             self.platform.update(&self.world);
         }
     }
-}
-
-fn map_range(from_range: (f32, f32), to_range: (f32, f32), s: f32) -> f32 {
-    to_range.0 + (s - from_range.0) * (to_range.1 - to_range.0) / (from_range.1 - from_range.0)
 }
 
 fn main() {

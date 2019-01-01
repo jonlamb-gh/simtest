@@ -1,6 +1,7 @@
 // TODO
 // - use margin on sizes/ect
 // - move bits to impl, use half_extents()
+// - make this a trait: pub fn update(&mut self, world: &World<f32>)
 //
 // use something like:
 // https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/position_controller_pid.c
@@ -13,26 +14,19 @@ use crate::config::COLLIDER_MARGIN;
 use crate::lag_engine::LAGEngine;
 use crate::na;
 use crate::na::{Isometry3, Point3, Vector3};
+use crate::power_distribution::{Control, Engine, PowerDistribution};
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::joint::FreeJoint;
-use nphysics3d::math::Force;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
 use std::collections::HashMap;
 
 pub struct Platform {
+    body: BodyHandle,
     box_node: BoxNode,
-    engines: HashMap<Engine, LAGEngine>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Engine {
-    E0,
-    E1,
-    E2,
-    E3,
+    power_dist: PowerDistribution,
 }
 
 impl Platform {
@@ -69,11 +63,11 @@ impl Platform {
 
         let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
 
-        // TODO - re-order
-        let e0 = LAGEngine::new(Vector3::new(rx, 0.0, rz), root_body, window, world);
-        let e1 = LAGEngine::new(Vector3::new(-rx, 0.0, rz), root_body, window, world);
-        let e2 = LAGEngine::new(Vector3::new(rx, 0.0, -rz), root_body, window, world);
-        let e3 = LAGEngine::new(Vector3::new(-rx, 0.0, -rz), root_body, window, world);
+        // Q0:Q3, Q0 is bottom left, clockwise
+        let e0 = LAGEngine::new(Vector3::new(-rx, 0.0, -rz), root_body, window, world);
+        let e1 = LAGEngine::new(Vector3::new(rx, 0.0, -rz), root_body, window, world);
+        let e2 = LAGEngine::new(Vector3::new(rx, 0.0, rz), root_body, window, world);
+        let e3 = LAGEngine::new(Vector3::new(-rx, 0.0, rz), root_body, window, world);
 
         let mut engines = HashMap::new();
         engines.insert(Engine::E0, e0);
@@ -81,20 +75,48 @@ impl Platform {
         engines.insert(Engine::E2, e2);
         engines.insert(Engine::E3, e3);
 
-        Platform { box_node, engines }
+        Platform {
+            body: root_body,
+            box_node,
+            power_dist: PowerDistribution::new(engines),
+        }
     }
 
     pub fn update(&mut self, world: &World<f32>) {
         self.box_node.update(world);
-
-        for (_, eng) in self.engines.iter_mut() {
-            eng.update(world);
-        }
+        self.power_dist.update(world);
     }
 
-    pub fn set_force(&mut self, engine: Engine, force: Force<f32>, world: &mut World<f32>) {
-        if let Some(e) = self.engines.get_mut(&engine) {
-            e.set_force(force, world);
-        }
+    pub fn reset(&mut self, world: &mut World<f32>) {
+        // TODO - doesn't work yet
+        let mbody = world
+            .multibody_mut(self.body)
+            .expect("Body is not in the world");
+        mbody.clear_dynamics();
+        self.power_dist.reset(world);
+    }
+
+    pub fn position(&self, world: &World<f32>) -> Isometry3<f32> {
+        let mbody = world
+            .multibody_link(self.body)
+            .expect("Body is not in the world");
+
+        mbody.position()
+    }
+
+    pub fn control(&mut self, _desired_vel: f32, world: &mut World<f32>) {
+        // TODO
+        let _pos = self.position(world);
+
+        let control = Control {
+            roll_comp: 0.0,
+            pitch_comp: 0.0,
+            e0: 0.0,
+            e1: 0.0,
+            e2: 0.0,
+            e3: 0.0,
+        };
+
+        self.power_dist.control_thrust(&control, world);
     }
 }
