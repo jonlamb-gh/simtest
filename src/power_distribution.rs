@@ -17,14 +17,18 @@ pub struct PowerDistribution {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Engine {
-    /// Quadrant 0
+    /// Quadrant 0, absolute Y axis linear force
     E0,
-    /// Quadrant 1
+    /// Quadrant 1, absolute Y axis linear force
     E1,
-    /// Quadrant 2
+    /// Quadrant 2, absolute Y axis linear force
     E2,
-    /// Quadrant 3
+    /// Quadrant 3, absolute Y axis linear force
     E3,
+    /* TODO - separate enum type? Abs/Rel,
+     * Rear positioned, relative X axis linear force
+     *E4,
+     * TODO - Center positioned, relative Z axis linear force */
 }
 
 #[derive(Debug, Clone, Copy)]

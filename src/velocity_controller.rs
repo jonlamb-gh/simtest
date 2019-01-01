@@ -1,5 +1,4 @@
 use crate::config::THRUST_LIMIT;
-use crate::na;
 use crate::na::Vector3;
 use nphysics3d::math::{Force, Velocity};
 use pid::Pid;
@@ -61,7 +60,7 @@ impl VelocityController {
         self.pid_vz.update_setpoint(setpoint.linear.z);
         let out_z = self.pid_vz.next_control_output(input.linear.z).output;
 
-        Force::new(Vector3::new(out_x, out_y, out_z), na::zero())
+        Force::linear(Vector3::new(out_x, out_y, out_z))
     }
 
     pub fn get_setpoint(&self) -> Velocity<f32> {

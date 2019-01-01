@@ -7,7 +7,7 @@
 // https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/position_controller_pid.c
 // for example controller
 //
-// use https://crates.io/crates/pid crate
+// linear_at_point() and rigid body instead of joints?
 
 use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
