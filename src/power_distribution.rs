@@ -25,10 +25,10 @@ pub enum Engine {
     E2,
     /// Quadrant 3, absolute Y axis linear force
     E3,
-    /* TODO - separate enum type? Abs/Rel,
-     * Rear positioned, relative X axis linear force
-     *E4,
-     * TODO - Center positioned, relative Z axis linear force */
+    /// Center positioned, Absolute X axis linear force
+    E4,
+    /// Center positioned, absolute Z axis linear force
+    E5,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -40,6 +40,8 @@ pub struct Control {
     pub e1: f32,
     pub e2: f32,
     pub e3: f32,
+    pub e4: f32,
+    pub e5: f32,
 }
 
 impl PowerDistribution {
@@ -53,6 +55,8 @@ impl PowerDistribution {
                 e1: 0.0,
                 e2: 0.0,
                 e3: 0.0,
+                e4: 0.0,
+                e5: 0.0,
             },
             engines,
         }
@@ -82,7 +86,7 @@ impl PowerDistribution {
     }
 
     pub fn control_thrust(&mut self, control: &Control, world: &mut World<f32>) {
-        // TODO
+        // TODO - compensation, cleanup redundant bits
         self.control.roll_comp = control.roll_comp;
         self.control.pitch_comp = control.pitch_comp;
         self.control.yaw_comp = control.yaw_comp;
@@ -91,6 +95,8 @@ impl PowerDistribution {
         self.control.e1 = clamp(control.e1, -THRUST_LIMIT, THRUST_LIMIT);
         self.control.e2 = clamp(control.e2, -THRUST_LIMIT, THRUST_LIMIT);
         self.control.e3 = clamp(control.e3, -THRUST_LIMIT, THRUST_LIMIT);
+        self.control.e4 = clamp(control.e4, -THRUST_LIMIT, THRUST_LIMIT);
+        self.control.e5 = clamp(control.e5, -THRUST_LIMIT, THRUST_LIMIT);
 
         let mut f: Force<f32> = Force::zero();
 
@@ -105,5 +111,13 @@ impl PowerDistribution {
 
         f.linear.y = self.control.e3;
         self.set_force(Engine::E3, f, world);
+
+        f = Force::zero();
+        f.linear.x = self.control.e4;
+        self.set_force(Engine::E4, f, world);
+
+        f = Force::zero();
+        f.linear.z = self.control.e5;
+        self.set_force(Engine::E5, f, world);
     }
 }

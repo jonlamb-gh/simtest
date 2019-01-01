@@ -67,16 +67,61 @@ impl Platform {
         let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
 
         // Q0:Q3, Q0 is bottom left, clockwise
-        let e0 = LAGEngine::new(Vector3::new(-rx, 0.0, -rz), root_body, window, world);
-        let e1 = LAGEngine::new(Vector3::new(rx, 0.0, -rz), root_body, window, world);
-        let e2 = LAGEngine::new(Vector3::new(rx, 0.0, rz), root_body, window, world);
-        let e3 = LAGEngine::new(Vector3::new(-rx, 0.0, rz), root_body, window, world);
+        let engine_size = Vector3::new(0.1, 0.4, 0.1);
+        let e2 = LAGEngine::new(
+            Vector3::new(-rx, 0.0, -rz),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
+        let e3 = LAGEngine::new(
+            Vector3::new(rx, 0.0, -rz),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
+        let e0 = LAGEngine::new(
+            Vector3::new(rx, 0.0, rz),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
+        let e1 = LAGEngine::new(
+            Vector3::new(-rx, 0.0, rz),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
+
+        let engine_size = Vector3::new(0.4, 0.3, 0.1);
+        let e4 = LAGEngine::new(
+            Vector3::new(0.0, 0.0, 0.0),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
+
+        let engine_size = Vector3::new(0.1, 0.3, 0.4);
+        let e5 = LAGEngine::new(
+            Vector3::new(0.0, 0.0, 0.0),
+            engine_size,
+            root_body,
+            window,
+            world,
+        );
 
         let mut engines = HashMap::new();
         engines.insert(Engine::E0, e0);
         engines.insert(Engine::E1, e1);
         engines.insert(Engine::E2, e2);
         engines.insert(Engine::E3, e3);
+        engines.insert(Engine::E4, e4);
+        engines.insert(Engine::E5, e5);
 
         Platform {
             body: root_body,
@@ -108,12 +153,19 @@ impl Platform {
         mbody.position()
     }
 
+    /// Global frame
     pub fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
         let mbody = world
             .multibody_link(self.body)
             .expect("Body is not in the world");
 
         mbody.velocity().clone()
+    }
+
+    /// Platform frame
+    pub fn rel_velocity(&self, world: &World<f32>) -> Velocity<f32> {
+        let iso = self.position(world);
+        self.velocity(world).rotated(&iso.rotation)
     }
 
     pub fn get_velocity_setpoint(&self) -> Velocity<f32> {
@@ -124,14 +176,17 @@ impl Platform {
         *self.power_dist.get_control()
     }
 
-    pub fn control(&mut self, desired_vel: f32, world: &mut World<f32>) {
+    pub fn control(&mut self, desired_vel: Velocity<f32>, world: &mut World<f32>) {
         // TODO
         let _pos = self.position(world);
-        let vel = self.velocity(world);
+        let mut vel = self.velocity(world);
+        let rel_vel = self.rel_velocity(world);
 
-        let des_vel = Velocity::new(Vector3::new(0.0, desired_vel, 0.0), na::zero());
+        // Use relative for x/z
+        vel.linear.x = rel_vel.linear.x;
+        vel.linear.z = rel_vel.linear.z;
 
-        let thrust = self.vel_control.update(vel, des_vel);
+        let thrust = self.vel_control.update(vel, desired_vel);
 
         let control = Control {
             roll_comp: 0.0,
@@ -141,6 +196,8 @@ impl Platform {
             e1: thrust.linear.y,
             e2: thrust.linear.y,
             e3: thrust.linear.y,
+            e4: thrust.linear.x,
+            e5: thrust.linear.z,
         };
 
         self.power_dist.control_thrust(&control, world);

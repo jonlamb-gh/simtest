@@ -25,11 +25,12 @@ struct ForceGen {
 impl LAGEngine {
     pub fn new(
         pos: Vector3<f32>,
+        size: Vector3<f32>,
         parent: BodyHandle,
         window: &mut Window,
         world: &mut World<f32>,
     ) -> Self {
-        let engine_size = Vector3::new(0.1, 0.4, 0.1);
+        let engine_size = size;
 
         let color = Point3::new(1.0, 0.0, 0.0);
         let delta = na::one();

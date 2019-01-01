@@ -15,7 +15,7 @@ use crate::na::{Isometry3, Point2, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::Platform;
 use crate::util::map_range;
-use gilrs::{Button, Gilrs};
+use gilrs::{Axis, Button, Gilrs};
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
@@ -23,6 +23,7 @@ use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
 use ncollide3d::shape::{Cuboid, ShapeHandle};
+use nphysics3d::math::Velocity;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::world::World;
 
@@ -38,7 +39,7 @@ impl AppState {
     pub fn new(window: &mut Window) -> Self {
         let cm = Gilrs::new().unwrap();
 
-        let arc_ball = ArcBall::new(Point3::new(10.0, 10.0, 10.0), Point3::new(0.0, 0.0, 0.0));
+        let arc_ball = ArcBall::new(Point3::new(-10.0, 10.0, -10.0), Point3::new(0.0, 0.0, 0.0));
 
         let mut world = World::new();
         world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
@@ -83,6 +84,40 @@ impl AppState {
         }
     }
 
+    fn control_commands(&mut self) -> Velocity<f32> {
+        let mut vel_y_pos = 0.0;
+        let mut vel_y_neg = 0.0;
+        let mut vel_x = 0.0;
+        let mut vel_z = 0.0;
+
+        if let Some(input) = self.cm.gamepad(0) {
+            if input.is_pressed(Button::West) {
+                println!("Reseting platform");
+                self.platform.reset(&mut self.world);
+            }
+
+            if let Some(btn) = input.button_data(Button::LeftTrigger2) {
+                vel_y_neg = btn.value();
+            }
+
+            if let Some(btn) = input.button_data(Button::RightTrigger2) {
+                vel_y_pos = btn.value();
+            }
+
+            vel_x = input.value(Axis::RightStickY);
+            vel_z = input.value(Axis::RightStickX);
+        }
+
+        let vel_y = vel_y_pos - vel_y_neg;
+        let vel_y = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_Y, VELOCITY_LIMIT_Y), vel_y);
+
+        let vel_x = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_x);
+
+        let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
+
+        Velocity::linear(vel_x, vel_y, vel_z)
+    }
+
     fn draw_text(&self, win: &mut Window) {
         // TODO - configs
         let font_size = 35.0;
@@ -125,7 +160,7 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!(
-                "Velocity: {:.3}, {:.3}, {:.3}",
+                "Absolute Velocity: {:.3}, {:.3}, {:.3}",
                 plat_vel.linear.x, plat_vel.linear.y, plat_vel.linear.z
             ),
             &text_pos,
@@ -137,7 +172,19 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!(
-                "Velocity Des: {:.3}, {:.3}, {:.3}",
+                "Relative Velocity: {:.3}, {:.3}, {:.3}",
+                plat_vel.linear.x, plat_vel.linear.y, plat_vel.linear.z
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "Control Velocity: {:.3}, {:.3}, {:.3}",
                 vel_setp.linear.x, vel_setp.linear.y, vel_setp.linear.z
             ),
             &text_pos,
@@ -158,6 +205,15 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!("E0: {:.3} E3: {:.3}", vel_cntr.e0, vel_cntr.e3,),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!("E4: {:.3} E5: {:.3}", vel_cntr.e4, vel_cntr.e5,),
             &text_pos,
             font_size,
             &Font::default(),
@@ -185,30 +241,8 @@ impl State for AppState {
                 // Do other things with event
             }
 
-            // TODO - move somewhere else
-            let vel_limit = VELOCITY_LIMIT_Y;
-            let mut vel_pos = 0.0;
-            let mut vel_neg = 0.0;
-
-            if let Some(input) = self.cm.gamepad(0) {
-                if input.is_pressed(Button::West) {
-                    println!("Reseting platform");
-                    self.platform.reset(&mut self.world);
-                }
-
-                if let Some(btn) = input.button_data(Button::LeftTrigger2) {
-                    vel_neg = btn.value();
-                }
-
-                if let Some(btn) = input.button_data(Button::RightTrigger2) {
-                    vel_pos = btn.value();
-                }
-            }
-
-            let desired_vel = vel_pos - vel_neg;
-            let desired_vel = map_range((-1.0, 1.0), (-vel_limit, vel_limit), desired_vel);
-
-            self.platform.control(desired_vel, &mut self.world);
+            let control_cmds = self.control_commands();
+            self.platform.control(control_cmds, &mut self.world);
 
             self.world.step();
 
