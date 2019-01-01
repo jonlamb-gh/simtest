@@ -29,8 +29,11 @@ pub enum Engine {
     E4,
     /// Center positioned, absolute Z axis linear force
     E5,
+    /* TODO - rotational about Y
+     *E6, */
 }
 
+// TODO - don't expose each engine, use force/torque/etc
 #[derive(Debug, Clone, Copy)]
 pub struct Control {
     pub roll_comp: f32,
@@ -42,6 +45,8 @@ pub struct Control {
     pub e3: f32,
     pub e4: f32,
     pub e5: f32,
+    // TODO
+    pub ty: f32,
 }
 
 impl PowerDistribution {
@@ -57,6 +62,7 @@ impl PowerDistribution {
                 e3: 0.0,
                 e4: 0.0,
                 e5: 0.0,
+                ty: 0.0,
             },
             engines,
         }
@@ -114,6 +120,8 @@ impl PowerDistribution {
 
         f = Force::zero();
         f.linear.x = self.control.e4;
+        // TODO
+        f.angular.y = control.ty;
         self.set_force(Engine::E4, f, world);
 
         f = Force::zero();

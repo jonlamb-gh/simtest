@@ -1,5 +1,6 @@
 use nalgebra as na;
 
+mod attitude_controller;
 mod box_node;
 mod config;
 mod lag_engine;
@@ -89,6 +90,7 @@ impl AppState {
         let mut vel_y_neg = 0.0;
         let mut vel_x = 0.0;
         let mut vel_z = 0.0;
+        let mut rot_dyaw = 0.0;
 
         if let Some(input) = self.cm.gamepad(0) {
             if input.is_pressed(Button::West) {
@@ -106,6 +108,8 @@ impl AppState {
 
             vel_x = input.value(Axis::RightStickY);
             vel_z = input.value(Axis::RightStickX);
+
+            rot_dyaw = input.value(Axis::LeftStickX);
         }
 
         let vel_y = vel_y_pos - vel_y_neg;
@@ -115,7 +119,11 @@ impl AppState {
 
         let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
 
-        Velocity::linear(vel_x, vel_y, vel_z)
+        //Velocity::linear(vel_x, vel_y, vel_z)
+        Velocity::new(
+            Vector3::new(vel_x, vel_y, vel_z),
+            Vector3::new(0.0, rot_dyaw, 0.0),
+        )
     }
 
     fn draw_text(&self, win: &mut Window) {
@@ -130,7 +138,7 @@ impl AppState {
         let plat_iso = self.platform.position(&self.world);
         let plat_pos = plat_iso.translation.vector;
         let plat_rot = plat_iso.rotation.euler_angles();
-        let vel_cntr = self.platform.get_velocity_control();
+        let control = self.platform.get_control();
 
         win.draw_text(
             &format!(
@@ -195,7 +203,7 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E1: {:.3} E2: {:.3}", vel_cntr.e1, vel_cntr.e2,),
+            &format!("E1: {:.3} E2: {:.3}", control.e1, control.e2,),
             &text_pos,
             font_size,
             &Font::default(),
@@ -204,7 +212,7 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E0: {:.3} E3: {:.3}", vel_cntr.e0, vel_cntr.e3,),
+            &format!("E0: {:.3} E3: {:.3}", control.e0, control.e3,),
             &text_pos,
             font_size,
             &Font::default(),
@@ -213,7 +221,7 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E4: {:.3} E5: {:.3}", vel_cntr.e4, vel_cntr.e5,),
+            &format!("E4: {:.3} E5: {:.3}", control.e4, control.e5,),
             &text_pos,
             font_size,
             &Font::default(),

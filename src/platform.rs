@@ -9,10 +9,12 @@
 //
 // linear_at_point() and rigid body instead of joints?
 
+use crate::attitude_controller::AttitudeController;
 use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
 use crate::lag_engine::LAGEngine;
 use crate::na;
+use crate::na::geometry::UnitQuaternion;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::power_distribution::{Control, Engine, PowerDistribution};
 use crate::velocity_controller::VelocityController;
@@ -30,6 +32,7 @@ pub struct Platform {
     box_node: BoxNode,
     power_dist: PowerDistribution,
     vel_control: VelocityController,
+    att_control: AttitudeController,
 }
 
 impl Platform {
@@ -128,6 +131,7 @@ impl Platform {
             box_node,
             power_dist: PowerDistribution::new(engines),
             vel_control: VelocityController::new(),
+            att_control: AttitudeController::new(),
         }
     }
 
@@ -172,21 +176,31 @@ impl Platform {
         self.vel_control.get_setpoint()
     }
 
-    pub fn get_velocity_control(&self) -> Control {
+    pub fn get_control(&self) -> Control {
         *self.power_dist.get_control()
+    }
+
+    pub fn get_attitude_setpoint(&self) -> Velocity<f32> {
+        self.vel_control.get_setpoint()
     }
 
     pub fn control(&mut self, desired_vel: Velocity<f32>, world: &mut World<f32>) {
         // TODO
-        let _pos = self.position(world);
+        let pos = self.position(world);
+        let rot = pos.rotation;
         let mut vel = self.velocity(world);
         let rel_vel = self.rel_velocity(world);
+        let dyaw = desired_vel.angular.y;
+        let (r, p, y) = rot.euler_angles();
+        let desired_rot = UnitQuaternion::from_euler_angles(r, p, y + dyaw);
 
         // Use relative for x/z
         vel.linear.x = rel_vel.linear.x;
         vel.linear.z = rel_vel.linear.z;
 
         let thrust = self.vel_control.update(vel, desired_vel);
+
+        let torque = self.att_control.update(rot, desired_rot);
 
         let control = Control {
             roll_comp: 0.0,
@@ -198,6 +212,7 @@ impl Platform {
             e3: thrust.linear.y,
             e4: thrust.linear.x,
             e5: thrust.linear.z,
+            ty: torque.angular.y,
         };
 
         self.power_dist.control_thrust(&control, world);
