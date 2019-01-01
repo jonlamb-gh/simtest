@@ -7,7 +7,6 @@ pub struct VelocityController {
     pid_vx: Pid<f32>,
     pid_vy: Pid<f32>,
     pid_vz: Pid<f32>,
-    setpoint: Velocity<f32>,
 }
 
 impl VelocityController {
@@ -44,13 +43,10 @@ impl VelocityController {
             pid_vx,
             pid_vy,
             pid_vz,
-            setpoint: Velocity::zero(),
         }
     }
 
     pub fn update(&mut self, input: Velocity<f32>, setpoint: Velocity<f32>) -> Force<f32> {
-        self.setpoint = setpoint;
-
         self.pid_vx.update_setpoint(setpoint.linear.x);
         let out_x = self.pid_vx.next_control_output(input.linear.x).output;
 
@@ -61,9 +57,5 @@ impl VelocityController {
         let out_z = self.pid_vz.next_control_output(input.linear.z).output;
 
         Force::linear(Vector3::new(out_x, out_y, out_z))
-    }
-
-    pub fn get_setpoint(&self) -> Velocity<f32> {
-        self.setpoint
     }
 }

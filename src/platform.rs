@@ -32,7 +32,9 @@ pub struct Platform {
     box_node: BoxNode,
     power_dist: PowerDistribution,
     vel_control: VelocityController,
+    vel_setpoint: Velocity<f32>,
     att_control: AttitudeController,
+    att_setpoint: UnitQuaternion<f32>,
 }
 
 impl Platform {
@@ -131,7 +133,9 @@ impl Platform {
             box_node,
             power_dist: PowerDistribution::new(engines),
             vel_control: VelocityController::new(),
+            vel_setpoint: Velocity::zero(),
             att_control: AttitudeController::new(),
+            att_setpoint: UnitQuaternion::identity(),
         }
     }
 
@@ -168,31 +172,40 @@ impl Platform {
 
     /// Platform frame
     pub fn rel_velocity(&self, world: &World<f32>) -> Velocity<f32> {
+        // TODO - fix this
         let iso = self.position(world);
         self.velocity(world).rotated(&iso.rotation)
     }
 
-    pub fn get_velocity_setpoint(&self) -> Velocity<f32> {
-        self.vel_control.get_setpoint()
+    pub fn velocity_setpoint(&self) -> &Velocity<f32> {
+        &self.vel_setpoint
     }
 
-    pub fn get_control(&self) -> Control {
+    pub fn attitude_setpoint(&self) -> &UnitQuaternion<f32> {
+        &self.att_setpoint
+    }
+
+    /*
+    pub fn control(&self) -> Control {
         *self.power_dist.get_control()
     }
+    */
 
-    pub fn get_attitude_setpoint(&self) -> Velocity<f32> {
-        self.vel_control.get_setpoint()
-    }
-
-    pub fn control(&mut self, desired_vel: Velocity<f32>, world: &mut World<f32>) {
+    pub fn step_controls(
+        &mut self,
+        vel_setpoint: Velocity<f32>,
+        att_setpoint: UnitQuaternion<f32>,
+        world: &mut World<f32>,
+    ) {
         // TODO
+        /*
         let pos = self.position(world);
         let rot = pos.rotation;
         let mut vel = self.velocity(world);
         let rel_vel = self.rel_velocity(world);
         let dyaw = desired_vel.angular.y;
-        let (r, p, y) = rot.euler_angles();
-        let desired_rot = UnitQuaternion::from_euler_angles(r, p, y + dyaw);
+        let rot_v = rot.scaled_axis();
+        let desired_rot = UnitQuaternion::new(Vector3::new(rot_v.x, rot_v.y + dyaw, rot_v.z));
 
         // Use relative for x/z
         vel.linear.x = rel_vel.linear.x;
@@ -216,5 +229,6 @@ impl Platform {
         };
 
         self.power_dist.control_thrust(&control, world);
+        */
     }
 }

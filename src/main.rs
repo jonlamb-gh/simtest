@@ -12,6 +12,7 @@ mod velocity_controller;
 
 use crate::box_node::BoxNode;
 use crate::config::*;
+use crate::na::geometry::UnitQuaternion;
 use crate::na::{Isometry3, Point2, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::Platform;
@@ -85,7 +86,8 @@ impl AppState {
         }
     }
 
-    fn control_commands(&mut self) -> Velocity<f32> {
+    /// Returns velocity setpoint and attitude setpoint
+    fn control_commands(&mut self) -> (Velocity<f32>, UnitQuaternion<f32>) {
         let mut vel_y_pos = 0.0;
         let mut vel_y_neg = 0.0;
         let mut vel_x = 0.0;
@@ -119,11 +121,10 @@ impl AppState {
 
         let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
 
-        //Velocity::linear(vel_x, vel_y, vel_z)
-        Velocity::new(
-            Vector3::new(vel_x, vel_y, vel_z),
-            Vector3::new(0.0, rot_dyaw, 0.0),
-        )
+        let vel_setpoint = Velocity::linear(vel_x, vel_y, vel_z);
+        let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, rot_dyaw, 0.0));
+
+        (vel_setpoint, att_setpoint)
     }
 
     fn draw_text(&self, win: &mut Window) {
@@ -133,18 +134,17 @@ impl AppState {
         let font_color = Point3::new(1.0, 1.0, 0.0);
         let mut text_pos = Point2::new(10.0, 10.0);
 
-        let plat_vel = self.platform.velocity(&self.world);
-        let vel_setp = self.platform.get_velocity_setpoint();
-        let plat_iso = self.platform.position(&self.world);
-        let plat_pos = plat_iso.translation.vector;
-        let plat_rot = plat_iso.rotation.euler_angles();
-        let control = self.platform.get_control();
+        let iso = self.platform.position(&self.world);
+        let pos = iso.translation.vector;
+        let att = iso.rotation.scaled_axis();
+        let abs_vel = self.platform.velocity(&self.world);
+        let rel_vel = self.platform.rel_velocity(&self.world);
+        let vel_sp = self.platform.velocity_setpoint();
+        let att_sp = self.platform.attitude_setpoint().scaled_axis();
+        //let control = self.platform.get_control();
 
         win.draw_text(
-            &format!(
-                "Position: {:.3}, {:.3}, {:.3}",
-                plat_pos.x, plat_pos.y, plat_pos.z
-            ),
+            &format!("Position: {:.3}, {:.3}, {:.3}", pos.x, pos.y, pos.z),
             &text_pos,
             font_size,
             &Font::default(),
@@ -154,10 +154,10 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!(
-                "RPY: {:.3}, {:.3}, {:.3}",
-                plat_rot.0.to_degrees(),
-                plat_rot.1.to_degrees(),
-                plat_rot.2.to_degrees()
+                "Attitude: {:.3}, {:.3}, {:.3}",
+                att.x.to_degrees(),
+                att.y.to_degrees(),
+                att.z.to_degrees(),
             ),
             &text_pos,
             font_size,
@@ -169,7 +169,7 @@ impl AppState {
         win.draw_text(
             &format!(
                 "Absolute Velocity: {:.3}, {:.3}, {:.3}",
-                plat_vel.linear.x, plat_vel.linear.y, plat_vel.linear.z
+                abs_vel.linear.x, abs_vel.linear.y, abs_vel.linear.z
             ),
             &text_pos,
             font_size,
@@ -181,7 +181,7 @@ impl AppState {
         win.draw_text(
             &format!(
                 "Relative Velocity: {:.3}, {:.3}, {:.3}",
-                plat_vel.linear.x, plat_vel.linear.y, plat_vel.linear.z
+                rel_vel.linear.x, rel_vel.linear.y, rel_vel.linear.z
             ),
             &text_pos,
             font_size,
@@ -192,8 +192,8 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!(
-                "Control Velocity: {:.3}, {:.3}, {:.3}",
-                vel_setp.linear.x, vel_setp.linear.y, vel_setp.linear.z
+                "Velocity Setpoint: {:.3}, {:.3}, {:.3}",
+                vel_sp.linear.x, vel_sp.linear.y, vel_sp.linear.z
             ),
             &text_pos,
             font_size,
@@ -201,6 +201,21 @@ impl AppState {
             &font_color,
         );
 
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "Attitude Setpoint: {:.3}, {:.3}, {:.3}",
+                att_sp.x.to_degrees(),
+                att_sp.y.to_degrees(),
+                att_sp.z.to_degrees(),
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        /*
         text_pos.y += next_font;
         win.draw_text(
             &format!("E1: {:.3} E2: {:.3}", control.e1, control.e2,),
@@ -227,6 +242,7 @@ impl AppState {
             &Font::default(),
             &font_color,
         );
+        */
     }
 }
 
@@ -249,8 +265,9 @@ impl State for AppState {
                 // Do other things with event
             }
 
-            let control_cmds = self.control_commands();
-            self.platform.control(control_cmds, &mut self.world);
+            let (vel_setpoint, att_setpoint) = self.control_commands();
+            self.platform
+                .step_controls(vel_setpoint, att_setpoint, &mut self.world);
 
             self.world.step();
 

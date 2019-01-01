@@ -29,8 +29,6 @@ pub enum Engine {
     E4,
     /// Center positioned, absolute Z axis linear force
     E5,
-    /* TODO - rotational about Y
-     *E6, */
 }
 
 // TODO - don't expose each engine, use force/torque/etc
