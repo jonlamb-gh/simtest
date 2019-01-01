@@ -15,9 +15,11 @@ use crate::lag_engine::LAGEngine;
 use crate::na;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::power_distribution::{Control, Engine, PowerDistribution};
+use crate::velocity_controller::VelocityController;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::joint::FreeJoint;
+use nphysics3d::math::Velocity;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
@@ -27,6 +29,7 @@ pub struct Platform {
     body: BodyHandle,
     box_node: BoxNode,
     power_dist: PowerDistribution,
+    vel_control: VelocityController,
 }
 
 impl Platform {
@@ -79,6 +82,7 @@ impl Platform {
             body: root_body,
             box_node,
             power_dist: PowerDistribution::new(engines),
+            vel_control: VelocityController::new(),
         }
     }
 
@@ -104,17 +108,32 @@ impl Platform {
         mbody.position()
     }
 
-    pub fn control(&mut self, _desired_vel: f32, world: &mut World<f32>) {
+    pub fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
+        let mbody = world
+            .multibody_link(self.body)
+            .expect("Body is not in the world");
+
+        mbody.velocity().clone()
+    }
+
+    pub fn control(&mut self, desired_vel: f32, world: &mut World<f32>) {
         // TODO
         let _pos = self.position(world);
+        let vel = self.velocity(world);
+
+        let thrust = self.vel_control.update(vel.linear.y, desired_vel);
+        println!(
+            "des {} - act {} - thrust {}",
+            desired_vel, vel.linear.y, thrust
+        );
 
         let control = Control {
             roll_comp: 0.0,
             pitch_comp: 0.0,
-            e0: 0.0,
-            e1: 0.0,
-            e2: 0.0,
-            e3: 0.0,
+            e0: thrust,
+            e1: thrust,
+            e2: thrust,
+            e3: thrust,
         };
 
         self.power_dist.control_thrust(&control, world);

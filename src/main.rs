@@ -7,10 +7,11 @@ mod node;
 mod platform;
 mod power_distribution;
 mod util;
+mod velocity_controller;
 
 use crate::box_node::BoxNode;
 use crate::config::COLLIDER_MARGIN;
-use crate::na::{Isometry3, Point3, Vector3};
+use crate::na::{Isometry3, Point2, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::Platform;
 use crate::util::map_range;
@@ -19,6 +20,7 @@ use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::post_processing::PostProcessingEffect;
+use kiss3d::text::Font;
 use kiss3d::window::{State, Window};
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::object::{BodyHandle, Material};
@@ -80,6 +82,43 @@ impl AppState {
             platform,
         }
     }
+
+    fn draw_text(&self, win: &mut Window) {
+        // TODO - configs
+        let font_size = 35.0;
+        let next_font = font_size + 5.0;
+        let font_color = Point3::new(1.0, 1.0, 0.0);
+        let mut text_pos = Point2::new(10.0, 10.0);
+
+        let plat_iso = self.platform.position(&self.world);
+        let plat_pos = plat_iso.translation.vector;
+        let plat_rot = plat_iso.rotation.euler_angles();
+
+        win.draw_text(
+            &format!(
+                "Position: {:.3}, {:.3}, {:.3}",
+                plat_pos.x, plat_pos.y, plat_pos.z
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "RPY: {:.3}, {:.3}, {:.3}",
+                plat_rot.0.to_degrees(),
+                plat_rot.1.to_degrees(),
+                plat_rot.2.to_degrees()
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+    }
 }
 
 impl State for AppState {
@@ -129,6 +168,8 @@ impl State for AppState {
 
             self.ground.update(&self.world);
             self.platform.update(&self.world);
+
+            self.draw_text(win);
         }
     }
 }

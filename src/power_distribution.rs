@@ -1,10 +1,14 @@
+// TODO
+// - roll/pitch compensation
+// like here:
+// https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/power_distribution_stock.c#L74
+
+use crate::config::THRUST_LIMIT;
 use crate::lag_engine::LAGEngine;
 use crate::util::clamp;
 use nphysics3d::math::Force;
 use nphysics3d::world::World;
 use std::collections::HashMap;
-
-const THRUST_LIMIT: f32 = 30.0;
 
 pub struct PowerDistribution {
     engines: HashMap<Engine, LAGEngine>,
