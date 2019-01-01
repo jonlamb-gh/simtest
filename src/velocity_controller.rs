@@ -4,6 +4,9 @@ use pid::Pid;
 
 pub struct VelocityController {
     pid_vy: Pid<f32>,
+
+    // TODO
+    setpoint: f32,
 }
 
 impl VelocityController {
@@ -18,13 +21,22 @@ impl VelocityController {
         let mut pid_vy = Pid::new(kp, ki, kd, p_limit, i_limit, d_limit);
         pid_vy.update_setpoint(0.0);
 
-        VelocityController { pid_vy }
+        VelocityController {
+            pid_vy,
+            setpoint: 0.0,
+        }
     }
 
     //pub fn update(&mut self, input: Velocity<f32>, setpoint: Velocity<f32>) ->
     // f32 {
     pub fn update(&mut self, input: f32, setpoint: f32) -> f32 {
+        self.setpoint = setpoint;
         self.pid_vy.update_setpoint(setpoint);
         self.pid_vy.next_control_output(input).output
+    }
+
+    pub fn get_setpoint(&self) -> f32 {
+        //self.pid_vy.get_setpoint().expect("Not initialized")
+        self.setpoint
     }
 }

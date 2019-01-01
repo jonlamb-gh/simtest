@@ -10,7 +10,7 @@ mod util;
 mod velocity_controller;
 
 use crate::box_node::BoxNode;
-use crate::config::COLLIDER_MARGIN;
+use crate::config::*;
 use crate::na::{Isometry3, Point2, Point3, Vector3};
 use crate::node::Node;
 use crate::platform::Platform;
@@ -90,9 +90,11 @@ impl AppState {
         let font_color = Point3::new(1.0, 1.0, 0.0);
         let mut text_pos = Point2::new(10.0, 10.0);
 
+        let plat_vel = self.platform.velocity(&self.world);
         let plat_iso = self.platform.position(&self.world);
         let plat_pos = plat_iso.translation.vector;
         let plat_rot = plat_iso.rotation.euler_angles();
+        let vel_cntr = self.platform.get_velocity_control();
 
         win.draw_text(
             &format!(
@@ -113,6 +115,45 @@ impl AppState {
                 plat_rot.1.to_degrees(),
                 plat_rot.2.to_degrees()
             ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "Velocity: {:.3}, {:.3}, {:.3}",
+                plat_vel.linear.x, plat_vel.linear.y, plat_vel.linear.z
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!("VzDes: {:.3}", self.platform.get_velocity_setpoint(),),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!("E1: {:.3} E2: {:.3}", vel_cntr.e1, vel_cntr.e2,),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!("E0: {:.3} E3: {:.3}", vel_cntr.e0, vel_cntr.e3,),
             &text_pos,
             font_size,
             &Font::default(),
@@ -140,7 +181,8 @@ impl State for AppState {
                 // Do other things with event
             }
 
-            let vel_limit = 10.0;
+            // TODO - move somewhere else
+            let vel_limit = VELOCITY_LIMIT_Y;
             let mut vel_pos = 0.0;
             let mut vel_neg = 0.0;
 

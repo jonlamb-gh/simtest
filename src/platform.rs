@@ -116,16 +116,20 @@ impl Platform {
         mbody.velocity().clone()
     }
 
+    pub fn get_velocity_setpoint(&self) -> f32 {
+        self.vel_control.get_setpoint()
+    }
+
+    pub fn get_velocity_control(&self) -> Control {
+        *self.power_dist.get_control()
+    }
+
     pub fn control(&mut self, desired_vel: f32, world: &mut World<f32>) {
         // TODO
         let _pos = self.position(world);
         let vel = self.velocity(world);
 
         let thrust = self.vel_control.update(vel.linear.y, desired_vel);
-        println!(
-            "des {} - act {} - thrust {}",
-            desired_vel, vel.linear.y, thrust
-        );
 
         let control = Control {
             roll_comp: 0.0,
