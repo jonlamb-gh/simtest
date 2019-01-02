@@ -11,8 +11,8 @@ pub struct AttitudeController {
 impl AttitudeController {
     pub fn new() -> Self {
         // TODO - PID configs
-        let kp = 15.0;
-        let ki = 5.0;
+        let kp = 25.0;
+        let ki = 15.0;
         let kd = 0.0;
         let p_limit = TORQUE_LIMIT;
         let i_limit = 15.0;

@@ -114,15 +114,18 @@ impl AppState {
             rot_dyaw = input.value(Axis::LeftStickX);
         }
 
-        let vel_y = vel_y_pos - vel_y_neg;
-        let vel_y = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_Y, VELOCITY_LIMIT_Y), vel_y);
-
+        let vel_y = map_range(
+            (-1.0, 1.0),
+            (-VELOCITY_LIMIT_Y, VELOCITY_LIMIT_Y),
+            vel_y_pos - vel_y_neg,
+        );
         let vel_x = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_x);
-
         let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
-
         let vel_setpoint = Velocity::linear(vel_x, vel_y, vel_z);
-        let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, rot_dyaw, 0.0));
+
+        let cur_yaw = self.platform.attitude_setpoint().scaled_axis().y;
+        let yaw_setp = cur_yaw + map_range((-1.0, 1.0), (-ATT_LIMIT_Y, ATT_LIMIT_Y), rot_dyaw);
+        let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, yaw_setp, 0.0));
 
         (vel_setpoint, att_setpoint)
     }
@@ -141,7 +144,7 @@ impl AppState {
         let rel_vel = self.platform.rel_velocity(&self.world);
         let vel_sp = self.platform.velocity_setpoint();
         let att_sp = self.platform.attitude_setpoint().scaled_axis();
-        //let control = self.platform.get_control();
+        let pwr_dist_control = self.platform.power_dist_control();
 
         win.draw_text(
             &format!("Position: {:.3}, {:.3}, {:.3}", pos.x, pos.y, pos.z),

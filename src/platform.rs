@@ -16,7 +16,7 @@ use crate::lag_engine::LAGEngine;
 use crate::na;
 use crate::na::geometry::UnitQuaternion;
 use crate::na::{Isometry3, Point3, Vector3};
-use crate::power_distribution::{Control, Engine, PowerDistribution};
+use crate::power_distribution::{Control, PowerDistribution};
 use crate::velocity_controller::VelocityController;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
@@ -25,12 +25,12 @@ use nphysics3d::math::Velocity;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
-use std::collections::HashMap;
 
 pub struct Platform {
     body: BodyHandle,
     box_node: BoxNode,
     power_dist: PowerDistribution,
+    power_dist_control: Control,
     vel_control: VelocityController,
     vel_setpoint: Velocity<f32>,
     att_control: AttitudeController,
@@ -71,7 +71,6 @@ impl Platform {
 
         let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
 
-        // Q0:Q3, Q0 is bottom left, clockwise
         let engine_size = Vector3::new(0.1, 0.4, 0.1);
         let e2 = LAGEngine::new(
             Vector3::new(-rx, 0.0, -rz),
@@ -102,36 +101,11 @@ impl Platform {
             world,
         );
 
-        let engine_size = Vector3::new(0.4, 0.3, 0.1);
-        let e4 = LAGEngine::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-
-        let engine_size = Vector3::new(0.1, 0.3, 0.4);
-        let e5 = LAGEngine::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-
-        let mut engines = HashMap::new();
-        engines.insert(Engine::E0, e0);
-        engines.insert(Engine::E1, e1);
-        engines.insert(Engine::E2, e2);
-        engines.insert(Engine::E3, e3);
-        engines.insert(Engine::E4, e4);
-        engines.insert(Engine::E5, e5);
-
         Platform {
             body: root_body,
             box_node,
-            power_dist: PowerDistribution::new(engines),
+            power_dist: PowerDistribution::new(e0, e1, e2, e3),
+            power_dist_control: Control::new(),
             vel_control: VelocityController::new(),
             vel_setpoint: Velocity::zero(),
             att_control: AttitudeController::new(),
@@ -185,11 +159,9 @@ impl Platform {
         &self.att_setpoint
     }
 
-    /*
-    pub fn control(&self) -> Control {
-        *self.power_dist.get_control()
+    pub fn power_dist_control(&self) -> &Control {
+        &self.power_dist_control
     }
-    */
 
     pub fn step_controls(
         &mut self,
@@ -198,6 +170,10 @@ impl Platform {
         world: &mut World<f32>,
     ) {
         // TODO
+
+        self.vel_setpoint = vel_setpoint;
+        self.att_setpoint = att_setpoint;
+
         /*
         let pos = self.position(world);
         let rot = pos.rotation;

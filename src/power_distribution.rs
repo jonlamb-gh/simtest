@@ -1,100 +1,68 @@
-// TODO
-// - roll/pitch compensation
-// like here:
-// https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/power_distribution_stock.c#L74
-
 use crate::config::THRUST_LIMIT;
 use crate::lag_engine::LAGEngine;
+use crate::na;
+use crate::na::Vector3;
 use crate::util::clamp;
 use nphysics3d::math::Force;
 use nphysics3d::world::World;
-use std::collections::HashMap;
 
 pub struct PowerDistribution {
-    control: Control,
-    engines: HashMap<Engine, LAGEngine>,
+    /// Quadrant 0, Rear left
+    e0: LAGEngine,
+    /// Quadrant 1, Front left
+    e1: LAGEngine,
+    /// Quadrant 2, Front right
+    e2: LAGEngine,
+    /// Quadrant 3, Rear right
+    e3: LAGEngine,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Engine {
-    /// Quadrant 0, absolute Y axis linear force
-    E0,
-    /// Quadrant 1, absolute Y axis linear force
-    E1,
-    /// Quadrant 2, absolute Y axis linear force
-    E2,
-    /// Quadrant 3, absolute Y axis linear force
-    E3,
-    /// Center positioned, Absolute X axis linear force
-    E4,
-    /// Center positioned, absolute Z axis linear force
-    E5,
-}
-
-// TODO - don't expose each engine, use force/torque/etc
 #[derive(Debug, Clone, Copy)]
 pub struct Control {
-    pub roll_comp: f32,
-    pub pitch_comp: f32,
-    pub yaw_comp: f32,
-    pub e0: f32,
-    pub e1: f32,
-    pub e2: f32,
-    pub e3: f32,
-    pub e4: f32,
-    pub e5: f32,
-    // TODO
-    pub ty: f32,
+    pub att_comp: Vector3<f32>,
+    pub e0: Force<f32>,
+    pub e1: Force<f32>,
+    pub e2: Force<f32>,
+    pub e3: Force<f32>,
+}
+
+impl Control {
+    pub fn new() -> Self {
+        Control {
+            att_comp: na::zero(),
+            e0: Force::zero(),
+            e1: Force::zero(),
+            e2: Force::zero(),
+            e3: Force::zero(),
+        }
+    }
 }
 
 impl PowerDistribution {
-    pub fn new(engines: HashMap<Engine, LAGEngine>) -> Self {
-        PowerDistribution {
-            control: Control {
-                roll_comp: 0.0,
-                pitch_comp: 0.0,
-                yaw_comp: 0.0,
-                e0: 0.0,
-                e1: 0.0,
-                e2: 0.0,
-                e3: 0.0,
-                e4: 0.0,
-                e5: 0.0,
-                ty: 0.0,
-            },
-            engines,
-        }
+    pub fn new(e0: LAGEngine, e1: LAGEngine, e2: LAGEngine, e3: LAGEngine) -> Self {
+        PowerDistribution { e0, e1, e2, e3 }
     }
 
     pub fn update(&mut self, world: &World<f32>) {
-        for (_, eng) in self.engines.iter_mut() {
-            eng.update(world);
-        }
+        self.e0.update(world);
+        self.e1.update(world);
+        self.e2.update(world);
+        self.e3.update(world);
     }
 
     pub fn reset(&mut self, world: &mut World<f32>) {
-        for (_, eng) in self.engines.iter_mut() {
-            eng.set_force(Force::zero(), world);
-        }
-    }
-
-    pub fn get_control(&self) -> &Control {
-        &self.control
-    }
-
-    // TODO - update control here
-    fn set_force(&mut self, engine: Engine, force: Force<f32>, world: &mut World<f32>) {
-        if let Some(e) = self.engines.get_mut(&engine) {
-            e.set_force(force, world);
-        }
+        self.e0.set_force(Force::zero(), world);
+        self.e1.set_force(Force::zero(), world);
+        self.e2.set_force(Force::zero(), world);
+        self.e3.set_force(Force::zero(), world);
     }
 
     pub fn control_thrust(&mut self, control: &Control, world: &mut World<f32>) {
-        // TODO - compensation, cleanup redundant bits
-        self.control.roll_comp = control.roll_comp;
-        self.control.pitch_comp = control.pitch_comp;
-        self.control.yaw_comp = control.yaw_comp;
+        // TODO - compensation
 
+        self.e0.set_force(Self::clamp_force(&control.e0), world);
+
+        /*
         self.control.e0 = clamp(control.e0, -THRUST_LIMIT, THRUST_LIMIT);
         self.control.e1 = clamp(control.e1, -THRUST_LIMIT, THRUST_LIMIT);
         self.control.e2 = clamp(control.e2, -THRUST_LIMIT, THRUST_LIMIT);
@@ -125,5 +93,14 @@ impl PowerDistribution {
         f = Force::zero();
         f.linear.z = self.control.e5;
         self.set_force(Engine::E5, f, world);
+        */
+    }
+
+    fn clamp_force(f: &Force<f32>) -> Force<f32> {
+        Force::linear(Vector3::new(
+            clamp(f.linear.x, -THRUST_LIMIT, THRUST_LIMIT),
+            clamp(f.linear.y, -THRUST_LIMIT, THRUST_LIMIT),
+            clamp(f.linear.z, -THRUST_LIMIT, THRUST_LIMIT),
+        ))
     }
 }
