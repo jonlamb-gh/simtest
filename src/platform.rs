@@ -21,6 +21,7 @@ use crate::velocity_controller::VelocityController;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::joint::FreeJoint;
+use nphysics3d::math::Force;
 use nphysics3d::math::Velocity;
 use nphysics3d::object::{BodyHandle, Material};
 use nphysics3d::volumetric::Volumetric;
@@ -169,10 +170,17 @@ impl Platform {
         att_setpoint: UnitQuaternion<f32>,
         world: &mut World<f32>,
     ) {
-        // TODO
-
         self.vel_setpoint = vel_setpoint;
         self.att_setpoint = att_setpoint;
+
+        let pos = self.position(world);
+        let rot = pos.rotation;
+        let vel = self.velocity(world);
+
+        let thrust = self.vel_control.update(vel, self.vel_setpoint);
+        let torque = self.att_control.update(rot, self.att_setpoint);
+
+        self.power_dist_control.e0 = Force::linear(Vector3::new(0.0, 0.0, 0.0));
 
         /*
         let pos = self.position(world);
