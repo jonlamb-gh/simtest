@@ -13,11 +13,11 @@ pub struct AttitudeController {
 impl AttitudeController {
     pub fn new() -> Self {
         // TODO - PID configs
-        let kp = 25.0;
-        let ki = 15.0;
+        let kp = 10.0;
+        let ki = 5.0;
         let kd = 0.0;
         let p_limit = TORQUE_LIMIT;
-        let i_limit = 15.0;
+        let i_limit = 1.0;
         let d_limit = 10.0;
         let mut pid_rot_y = Pid::new(kp, ki, kd, p_limit, i_limit, d_limit);
         pid_rot_y.update_setpoint(0.0);

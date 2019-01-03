@@ -35,6 +35,7 @@ struct AppState {
     world: World<f32>,
     ground: Node,
     platform: Platform,
+    paused: bool,
 }
 
 impl AppState {
@@ -83,6 +84,7 @@ impl AppState {
             world,
             ground,
             platform,
+            paused: false,
         }
     }
 
@@ -92,18 +94,22 @@ impl AppState {
         let mut vel_y_neg = 0.0;
         let mut vel_x = 0.0;
         let mut vel_z = 0.0;
-        let mut rot_dyaw = 0.0;
+        let mut rot_y = 0.0;
 
         if let Some(input) = self.cm.gamepad(0) {
             if input.is_pressed(Button::West) {
                 println!("Reseting platform");
                 self.platform.reset(&mut self.world);
             }
-
+            if input.is_pressed(Button::North) {
+                self.paused = true;
+            }
+            if input.is_pressed(Button::East) {
+                self.paused = false;
+            }
             if let Some(btn) = input.button_data(Button::LeftTrigger2) {
                 vel_y_neg = btn.value();
             }
-
             if let Some(btn) = input.button_data(Button::RightTrigger2) {
                 vel_y_pos = btn.value();
             }
@@ -111,7 +117,7 @@ impl AppState {
             vel_x = input.value(Axis::RightStickY);
             vel_z = input.value(Axis::RightStickX);
 
-            rot_dyaw = input.value(Axis::LeftStickX);
+            rot_y = input.value(Axis::LeftStickX);
         }
 
         let vel_y = map_range(
@@ -123,13 +129,13 @@ impl AppState {
         let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
         let vel_setpoint = Velocity::linear(vel_x, vel_y, vel_z);
 
-        let cur_yaw = self.platform.attitude_setpoint().scaled_axis().y;
-        let yaw_setp = cur_yaw + map_range((-1.0, 1.0), (-ATT_LIMIT_Y, ATT_LIMIT_Y), rot_dyaw);
-        let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, yaw_setp, 0.0));
+        let ry_setp = map_range((-1.0, 1.0), (-ATT_LIMIT_Y, ATT_LIMIT_Y), rot_y);
+        let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, ry_setp, 0.0));
 
         (vel_setpoint, att_setpoint)
     }
 
+    // TODO - move this somewhere else
     fn draw_text(&self, win: &mut Window) {
         // TODO - configs
         let font_size = 35.0;
@@ -207,6 +213,18 @@ impl AppState {
         text_pos.y += next_font;
         win.draw_text(
             &format!(
+                "Angular Velocity: {:.3}, {:.3}, {:.3}",
+                abs_vel.angular.x, abs_vel.angular.y, abs_vel.angular.z
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
                 "Attitude Setpoint: {:.3}, {:.3}, {:.3}",
                 att_sp.x.to_degrees(),
                 att_sp.y.to_degrees(),
@@ -218,10 +236,14 @@ impl AppState {
             &font_color,
         );
 
-        /*
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E1: {:.3} E2: {:.3}", control.e1, control.e2,),
+            &format!(
+                "Att Comp: {:.3}, {:.3}, {:.3}",
+                pwr_dist_control.att_comp.x.to_degrees(),
+                pwr_dist_control.att_comp.y.to_degrees(),
+                pwr_dist_control.att_comp.z.to_degrees(),
+            ),
             &text_pos,
             font_size,
             &Font::default(),
@@ -230,7 +252,12 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E0: {:.3} E3: {:.3}", control.e0, control.e3,),
+            &format!(
+                "E0: {:.3}, {:.3}, {:.3}",
+                pwr_dist_control.e0.linear.x,
+                pwr_dist_control.e0.linear.y,
+                pwr_dist_control.e0.linear.z,
+            ),
             &text_pos,
             font_size,
             &Font::default(),
@@ -239,13 +266,45 @@ impl AppState {
 
         text_pos.y += next_font;
         win.draw_text(
-            &format!("E4: {:.3} E5: {:.3}", control.e4, control.e5,),
+            &format!(
+                "E1: {:.3}, {:.3}, {:.3}",
+                pwr_dist_control.e1.linear.x,
+                pwr_dist_control.e1.linear.y,
+                pwr_dist_control.e1.linear.z,
+            ),
             &text_pos,
             font_size,
             &Font::default(),
             &font_color,
         );
-        */
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "E2: {:.3}, {:.3}, {:.3}",
+                pwr_dist_control.e2.linear.x,
+                pwr_dist_control.e2.linear.y,
+                pwr_dist_control.e2.linear.z,
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
+
+        text_pos.y += next_font;
+        win.draw_text(
+            &format!(
+                "E3: {:.3}, {:.3}, {:.3}",
+                pwr_dist_control.e3.linear.x,
+                pwr_dist_control.e3.linear.y,
+                pwr_dist_control.e3.linear.z,
+            ),
+            &text_pos,
+            font_size,
+            &Font::default(),
+            &font_color,
+        );
     }
 }
 
@@ -269,13 +328,16 @@ impl State for AppState {
             }
 
             let (vel_setpoint, att_setpoint) = self.control_commands();
-            self.platform
-                .step_controls(vel_setpoint, att_setpoint, &mut self.world);
 
-            self.world.step();
+            if !self.paused {
+                self.platform
+                    .step_controls(vel_setpoint, att_setpoint, &mut self.world);
 
-            self.ground.update(&self.world);
-            self.platform.update(&self.world);
+                self.world.step();
+
+                self.ground.update(&self.world);
+                self.platform.update(&self.world);
+            }
 
             self.draw_text(win);
         }

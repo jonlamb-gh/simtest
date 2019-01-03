@@ -57,43 +57,11 @@ impl PowerDistribution {
         self.e3.set_force(Force::zero(), world);
     }
 
-    pub fn control_thrust(&mut self, control: &Control, world: &mut World<f32>) {
-        // TODO - compensation
-
+    pub fn set_control(&mut self, control: &Control, world: &mut World<f32>) {
         self.e0.set_force(Self::clamp_force(&control.e0), world);
-
-        /*
-        self.control.e0 = clamp(control.e0, -THRUST_LIMIT, THRUST_LIMIT);
-        self.control.e1 = clamp(control.e1, -THRUST_LIMIT, THRUST_LIMIT);
-        self.control.e2 = clamp(control.e2, -THRUST_LIMIT, THRUST_LIMIT);
-        self.control.e3 = clamp(control.e3, -THRUST_LIMIT, THRUST_LIMIT);
-        self.control.e4 = clamp(control.e4, -THRUST_LIMIT, THRUST_LIMIT);
-        self.control.e5 = clamp(control.e5, -THRUST_LIMIT, THRUST_LIMIT);
-
-        let mut f: Force<f32> = Force::zero();
-
-        f.linear.y = self.control.e0;
-        self.set_force(Engine::E0, f, world);
-
-        f.linear.y = self.control.e1;
-        self.set_force(Engine::E1, f, world);
-
-        f.linear.y = self.control.e2;
-        self.set_force(Engine::E2, f, world);
-
-        f.linear.y = self.control.e3;
-        self.set_force(Engine::E3, f, world);
-
-        f = Force::zero();
-        f.linear.x = self.control.e4;
-        // TODO
-        f.angular.y = control.ty;
-        self.set_force(Engine::E4, f, world);
-
-        f = Force::zero();
-        f.linear.z = self.control.e5;
-        self.set_force(Engine::E5, f, world);
-        */
+        self.e1.set_force(Self::clamp_force(&control.e1), world);
+        self.e2.set_force(Self::clamp_force(&control.e2), world);
+        self.e3.set_force(Self::clamp_force(&control.e3), world);
     }
 
     fn clamp_force(f: &Force<f32>) -> Force<f32> {

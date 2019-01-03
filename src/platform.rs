@@ -177,10 +177,41 @@ impl Platform {
         let rot = pos.rotation;
         let vel = self.velocity(world);
 
-        let thrust = self.vel_control.update(vel, self.vel_setpoint);
+        let abs_thrust = self.vel_control.update(vel, self.vel_setpoint);
         let torque = self.att_control.update(rot, self.att_setpoint);
 
-        self.power_dist_control.e0 = Force::linear(Vector3::new(0.0, 0.0, 0.0));
+        let rel_rot_thrust = Velocity::linear(0.0, 0.0, torque.angular.y);
+        //let rel_vel = torq.rotated(&rot.inverse());
+        let abs_rot_thrust = rel_rot_thrust.rotated(&rot);
+
+        let abs_rot_thrust = Velocity::linear(
+            abs_rot_thrust.linear.x / 2.0,
+            abs_rot_thrust.linear.y / 2.0,
+            abs_rot_thrust.linear.z / 2.0,
+        );
+
+        self.power_dist_control.e0 = Force::linear(Vector3::new(
+            -abs_rot_thrust.linear.x,
+            -abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            -abs_rot_thrust.linear.z,
+        ));
+        self.power_dist_control.e1 = Force::linear(Vector3::new(
+            abs_rot_thrust.linear.x,
+            abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            abs_rot_thrust.linear.z
+        )); 
+        self.power_dist_control.e2 = Force::linear(Vector3::new(
+            abs_rot_thrust.linear.x,
+            abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            abs_rot_thrust.linear.z
+        ));
+        self.power_dist_control.e3 = Force::linear(Vector3::new(
+            -abs_rot_thrust.linear.x,
+            -abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            -abs_rot_thrust.linear.z,
+        )); 
+        
+        self.power_dist.set_control(&self.power_dist_control, world);
 
         /*
         let pos = self.position(world);
