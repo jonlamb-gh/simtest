@@ -129,7 +129,7 @@ impl AppState {
         let vel_z = map_range((-1.0, 1.0), (-VELOCITY_LIMIT_XZ, VELOCITY_LIMIT_XZ), vel_z);
         let vel_setpoint = Velocity::linear(vel_x, vel_y, vel_z);
 
-        let ry_setp = map_range((-1.0, 1.0), (-ATT_LIMIT_Y, ATT_LIMIT_Y), rot_y);
+        let ry_setp = map_range((-1.0, 1.0), (ATT_LIMIT_Y, -ATT_LIMIT_Y), rot_y);
         let att_setpoint = UnitQuaternion::new(Vector3::new(0.0, ry_setp, 0.0));
 
         (vel_setpoint, att_setpoint)
@@ -214,7 +214,9 @@ impl AppState {
         win.draw_text(
             &format!(
                 "Angular Velocity: {:.3}, {:.3}, {:.3}",
-                abs_vel.angular.x, abs_vel.angular.y, abs_vel.angular.z
+                abs_vel.angular.x.to_degrees(),
+                abs_vel.angular.y.to_degrees(),
+                abs_vel.angular.z.to_degrees(),
             ),
             &text_pos,
             font_size,
@@ -306,6 +308,26 @@ impl AppState {
             &font_color,
         );
     }
+
+    fn draw_engine_force_vectors(&self, win: &mut Window) {
+        let pwr_dist_control = self.platform.power_dist_control();
+        let engines = self.platform.engine_positions(&self.world);
+        let color = Point3::new(0.0, 1.0, 0.0);
+        let f_scale = 0.5;
+
+        let a = engines.e0.translation.vector;
+        let b = a + (pwr_dist_control.e0.linear * f_scale);
+        win.draw_line(&Point3::from(a), &Point3::from(b), &color);
+        let a = engines.e1.translation.vector;
+        let b = a + (pwr_dist_control.e1.linear * f_scale);
+        win.draw_line(&Point3::from(a), &Point3::from(b), &color);
+        let a = engines.e2.translation.vector;
+        let b = a + (pwr_dist_control.e2.linear * f_scale);
+        win.draw_line(&Point3::from(a), &Point3::from(b), &color);
+        let a = engines.e3.translation.vector;
+        let b = a + (pwr_dist_control.e3.linear * f_scale);
+        win.draw_line(&Point3::from(a), &Point3::from(b), &color);
+    }
 }
 
 impl State for AppState {
@@ -338,6 +360,8 @@ impl State for AppState {
                 self.ground.update(&self.world);
                 self.platform.update(&self.world);
             }
+
+            self.draw_engine_force_vectors(win);
 
             self.draw_text(win);
         }

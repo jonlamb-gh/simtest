@@ -1,7 +1,7 @@
 use crate::config::THRUST_LIMIT;
 use crate::lag_engine::LAGEngine;
 use crate::na;
-use crate::na::Vector3;
+use crate::na::{Isometry3, Vector3};
 use crate::util::clamp;
 use nphysics3d::math::Force;
 use nphysics3d::world::World;
@@ -26,6 +26,14 @@ pub struct Control {
     pub e3: Force<f32>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct EnginePositions {
+    pub e0: Isometry3<f32>,
+    pub e1: Isometry3<f32>,
+    pub e2: Isometry3<f32>,
+    pub e3: Isometry3<f32>,
+}
+
 impl Control {
     pub fn new() -> Self {
         Control {
@@ -41,6 +49,15 @@ impl Control {
 impl PowerDistribution {
     pub fn new(e0: LAGEngine, e1: LAGEngine, e2: LAGEngine, e3: LAGEngine) -> Self {
         PowerDistribution { e0, e1, e2, e3 }
+    }
+
+    pub fn engine_positions(&self, world: &World<f32>) -> EnginePositions {
+        EnginePositions {
+            e0: self.e0.position(world),
+            e1: self.e1.position(world),
+            e2: self.e2.position(world),
+            e3: self.e3.position(world),
+        }
     }
 
     pub fn update(&mut self, world: &World<f32>) {

@@ -13,6 +13,7 @@ use nphysics3d::volumetric::Volumetric;
 use nphysics3d::world::World;
 
 pub struct LAGEngine {
+    body: BodyHandle,
     force_gen: ForceGeneratorHandle,
     node: BoxNode,
 }
@@ -69,9 +70,18 @@ impl LAGEngine {
         let force_gen_handle = world.add_force_generator(force_gen);
 
         LAGEngine {
+            body,
             node,
             force_gen: force_gen_handle,
         }
+    }
+
+    pub fn position(&self, world: &World<f32>) -> Isometry3<f32> {
+        let mbody = world
+            .multibody_link(self.body)
+            .expect("Body is not in the world");
+
+        mbody.position()
     }
 
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {

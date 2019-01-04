@@ -16,7 +16,7 @@ use crate::lag_engine::LAGEngine;
 use crate::na;
 use crate::na::geometry::UnitQuaternion;
 use crate::na::{Isometry3, Point3, Vector3};
-use crate::power_distribution::{Control, PowerDistribution};
+use crate::power_distribution::{Control, EnginePositions, PowerDistribution};
 use crate::velocity_controller::VelocityController;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
@@ -164,6 +164,10 @@ impl Platform {
         &self.power_dist_control
     }
 
+    pub fn engine_positions(&self, world: &World<f32>) -> EnginePositions {
+        self.power_dist.engine_positions(world)
+    }
+
     pub fn step_controls(
         &mut self,
         vel_setpoint: Velocity<f32>,
@@ -191,26 +195,26 @@ impl Platform {
         );
 
         self.power_dist_control.e0 = Force::linear(Vector3::new(
-            -abs_rot_thrust.linear.x,
-            -abs_rot_thrust.linear.y + abs_thrust.linear.y,
-            -abs_rot_thrust.linear.z,
+            abs_rot_thrust.linear.x,
+            abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            abs_rot_thrust.linear.z,
         ));
         self.power_dist_control.e1 = Force::linear(Vector3::new(
-            abs_rot_thrust.linear.x,
-            abs_rot_thrust.linear.y + abs_thrust.linear.y,
-            abs_rot_thrust.linear.z
-        )); 
-        self.power_dist_control.e2 = Force::linear(Vector3::new(
-            abs_rot_thrust.linear.x,
-            abs_rot_thrust.linear.y + abs_thrust.linear.y,
-            abs_rot_thrust.linear.z
-        ));
-        self.power_dist_control.e3 = Force::linear(Vector3::new(
             -abs_rot_thrust.linear.x,
             -abs_rot_thrust.linear.y + abs_thrust.linear.y,
             -abs_rot_thrust.linear.z,
-        )); 
-        
+        ));
+        self.power_dist_control.e2 = Force::linear(Vector3::new(
+            -abs_rot_thrust.linear.x,
+            -abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            -abs_rot_thrust.linear.z,
+        ));
+        self.power_dist_control.e3 = Force::linear(Vector3::new(
+            abs_rot_thrust.linear.x,
+            abs_rot_thrust.linear.y + abs_thrust.linear.y,
+            abs_rot_thrust.linear.z,
+        ));
+
         self.power_dist.set_control(&self.power_dist_control, world);
 
         /*
