@@ -12,21 +12,21 @@ pub struct VelocityController {
 impl VelocityController {
     pub fn new() -> Self {
         // TODO - PID configs
-        let kp = 25.0;
-        let ki = 10.0;
+        let kp = 15.0;
+        let ki = 5.0;
         let kd = 0.0;
         let p_limit = THRUST_LIMIT;
-        let i_limit = 15.0;
-        let d_limit = 10.0;
+        let i_limit = 5.0;
+        let d_limit = 1.0;
         let mut pid_vx = Pid::new(kp, ki, kd, p_limit, i_limit, d_limit);
         pid_vx.update_setpoint(0.0);
 
-        let kp = 25.0;
-        let ki = 10.0;
+        let kp = 15.0;
+        let ki = 5.0;
         let kd = 0.0;
         let p_limit = THRUST_LIMIT;
-        let i_limit = 15.0;
-        let d_limit = 10.0;
+        let i_limit = 5.0;
+        let d_limit = 1.0;
         let mut pid_vy = Pid::new(kp, ki, kd, p_limit, i_limit, d_limit);
         pid_vy.update_setpoint(0.0);
 
