@@ -1,212 +1,218 @@
-// TODO
-// - use margin on sizes/ect
-// - move bits to impl, use half_extents()
-// - make this a trait: pub fn update(&mut self, world: &World<f32>)
-//
-// use something like:
-// https://github.com/bitcraze/crazyflie-firmware/blob/master/src/modules/src/position_controller_pid.c
-// for example controller
-//
-// linear_at_point() and rigid body instead of joints?
-
-use crate::attitude_controller::AttitudeController;
-use crate::box_node::BoxNode;
-use crate::config::COLLIDER_MARGIN;
-use crate::lag_engine::LAGEngine;
-use crate::na;
-use crate::na::geometry::UnitQuaternion;
-use crate::na::{Isometry3, Point3, Vector3};
-use crate::power_distribution::{Control, EnginePositions, PowerDistribution};
-use crate::velocity_controller::VelocityController;
+use crate::box_node::{build_scene_node, update_scene_node};
+use crate::force_gen::ForceGen;
+use crate::na::{self, Isometry3, Point3, Vector3};
+use crate::part::{Part, PartDesc};
+use crate::rf_engine::RfEngine;
+use kiss3d::scene::SceneNode;
+use kiss3d::window;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
 use nphysics3d::joint::FreeJoint;
-use nphysics3d::math::Force;
 use nphysics3d::math::Velocity;
-use nphysics3d::object::{BodyHandle, Material};
-use nphysics3d::volumetric::Volumetric;
+use nphysics3d::object::{
+    BodyHandle, BodyPartHandle, Collider, ColliderDesc, ColliderHandle, Multibody, MultibodyDesc,
+};
 use nphysics3d::world::World;
 
 pub struct Platform {
     body: BodyHandle,
-    box_node: BoxNode,
-    power_dist: PowerDistribution,
-    power_dist_control: Control,
-    vel_control: VelocityController,
-    vel_setpoint: Velocity<f32>,
-    att_control: AttitudeController,
-    att_setpoint: UnitQuaternion<f32>,
+    node: SceneNode,
+    collider: ColliderHandle,
+    rfe_q0: RfEngine,
+    rfe_q1: RfEngine,
+    rfe_q2: RfEngine,
+    rfe_q3: RfEngine,
 }
 
-impl Platform {
-    pub fn new(pos: Vector3<f32>, window: &mut Window, world: &mut World<f32>) -> Self {
-        let platform_size = Vector3::new(3.0, 0.2, 1.8);
-
-        let color = Point3::new(1.0, 0.0, 0.0);
-        let pos = Isometry3::new(pos, na::zero());
-        let delta = na::one();
-
-        let cuboid = Cuboid::new(platform_size);
-        let geom = ShapeHandle::new(cuboid.clone());
-
-        let root_body = world.add_multibody_link(
-            BodyHandle::ground(),
-            FreeJoint::new(pos),
-            na::zero(),
-            na::zero(),
-            geom.inertia(1.0),
-            geom.center_of_mass(),
-        );
-
-        let collision_handle = world.add_collider(
-            COLLIDER_MARGIN,
-            geom,
-            root_body,
-            Isometry3::identity(),
-            Material::default(),
-        );
-
-        let rx = cuboid.half_extents().x;
-        let ry = cuboid.half_extents().y;
-        let rz = cuboid.half_extents().z;
-
-        let box_node = BoxNode::new(collision_handle, world, delta, rx, ry, rz, color, window);
-
-        let engine_size = Vector3::new(0.1, 0.4, 0.1);
-        let e2 = LAGEngine::new(
-            Vector3::new(-rx, 0.0, -rz),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-        let e3 = LAGEngine::new(
-            Vector3::new(rx, 0.0, -rz),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-        let e0 = LAGEngine::new(
-            Vector3::new(rx, 0.0, rz),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-        let e1 = LAGEngine::new(
-            Vector3::new(-rx, 0.0, rz),
-            engine_size,
-            root_body,
-            window,
-            world,
-        );
-
-        Platform {
-            body: root_body,
-            box_node,
-            power_dist: PowerDistribution::new(e0, e1, e2, e3),
-            power_dist_control: Control::new(),
-            vel_control: VelocityController::new(),
-            vel_setpoint: Velocity::zero(),
-            att_control: AttitudeController::new(),
-            att_setpoint: UnitQuaternion::identity(),
+impl Part for Platform {
+    fn part_desc() -> PartDesc {
+        PartDesc {
+            size: Vector3::new(2.0, 0.05, 1.0),
+            mass: 1.0,
+            density: 0.3,
         }
     }
 
-    pub fn update(&mut self, world: &World<f32>) {
-        self.box_node.update(world);
-        self.power_dist.update(world);
+    fn collider_desc() -> ColliderDesc<f32> {
+        let part = Self::part_desc();
+        let shape = Cuboid::new(part.size / 2.0);
+        ColliderDesc::new(ShapeHandle::new(shape)).density(part.density)
     }
 
-    pub fn reset(&mut self, world: &mut World<f32>) {
-        // TODO - doesn't work yet
-        let mbody = world
-            .multibody_mut(self.body)
-            .expect("Body is not in the world");
-        mbody.clear_dynamics();
-        self.power_dist.reset(world);
+    fn position(&self, world: &World<f32>) -> Isometry3<f32> {
+        *world.collider(self.collider).unwrap().position()
+
+        // TODO - is the part or the parent?
+        //world.body(self.body).unwrap().part(0).unwrap().position()
     }
 
-    pub fn position(&self, world: &World<f32>) -> Isometry3<f32> {
-        let mbody = world
-            .multibody_link(self.body)
-            .expect("Body is not in the world");
+    fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
+        //world.body(self.body).unwrap().part(0).unwrap().velocity()
 
-        mbody.position()
+        let body = world.collider(self.collider).unwrap().body();
+        world.body(body).unwrap().part(0).unwrap().velocity()
     }
+}
 
-    /// Global frame
-    pub fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
-        let mbody = world
-            .multibody_link(self.body)
-            .expect("Body is not in the world");
-
-        mbody.velocity().clone()
-    }
-
-    /// Platform frame
-    pub fn rel_velocity(&self, world: &World<f32>) -> Velocity<f32> {
-        // TODO - fix this
-        let iso = self.position(world);
-        self.velocity(world).rotated(&iso.rotation)
-    }
-
-    pub fn velocity_setpoint(&self) -> &Velocity<f32> {
-        &self.vel_setpoint
-    }
-
-    pub fn attitude_setpoint(&self) -> &UnitQuaternion<f32> {
-        &self.att_setpoint
-    }
-
-    pub fn power_dist_control(&self) -> &Control {
-        &self.power_dist_control
-    }
-
-    pub fn engine_positions(&self, world: &World<f32>) -> EnginePositions {
-        self.power_dist.engine_positions(world)
-    }
-
-    pub fn step_controls(
-        &mut self,
-        vel_setpoint: Velocity<f32>,
-        att_setpoint: UnitQuaternion<f32>,
+impl Platform {
+    pub fn new(
         world: &mut World<f32>,
-    ) {
-        self.vel_setpoint = vel_setpoint;
-        self.att_setpoint = att_setpoint;
+        translation: Vector3<f32>,
+        color: Point3<f32>,
+        window: &mut window::Window,
+    ) -> Self {
+        // Build all of the mbody links/etc into the world,
+        // then iterate through the colliders and construct
+        // the user facing objects/parts
 
-        let pos = self.position(world);
-        let rot = pos.rotation;
-        let vel = self.velocity(world);
+        let platform_part = Self::part_desc();
+        let collider = Self::collider_desc();
 
-        // Convert relative x/z to absolute
-        // y is preserved as absolute
-        let rel_vel_xy_setp =
-            Velocity::linear(self.vel_setpoint.linear.x, 0.0, self.vel_setpoint.linear.z);
-        let abs_vel_xy_setp = rel_vel_xy_setp.rotated(&rot);
-        let abs_vel_setp = Velocity::linear(
-            abs_vel_xy_setp.linear.x,
-            abs_vel_xy_setp.linear.y + self.vel_setpoint.linear.y,
-            abs_vel_xy_setp.linear.z,
+        let root_joint = FreeJoint::new(Isometry3::new(translation, na::zero()));
+
+        let body = MultibodyDesc::new(root_joint)
+            .mass(platform_part.mass)
+            .collider(&collider)
+            .name("platform".to_string());
+
+        let part = RfEngine::part_desc();
+        let collider = RfEngine::collider_desc();
+        let part_translation =
+            Vector3::new(platform_part.size.x / 2.0, 0.0, platform_part.size.z / 2.0);
+        let body = RfEngine::build_link(
+            "rf_engine.q0".to_string(),
+            part_translation,
+            &collider,
+            body,
         );
 
-        let abs_thrust = self.vel_control.update(vel, abs_vel_setp);
-        //let abs_thrust = self.vel_control.update(vel, self.vel_setpoint);
+        let collider = RfEngine::collider_desc();
+        let part_translation =
+            Vector3::new(-platform_part.size.x / 2.0, 0.0, platform_part.size.z / 2.0);
+        let body = RfEngine::build_link(
+            "rf_engine.q1".to_string(),
+            part_translation,
+            &collider,
+            body,
+        );
 
-        // Convert pseudo torque into symmetric forces
-        let _torque = self.att_control.update(rot, self.att_setpoint);
-        let rel_rot_thrust = Velocity::linear(0.0, 0.0, self.att_setpoint.scaled_axis().y * 10.0);
-        //let rel_rot_thrust = Velocity::linear(0.0, 0.0, torque.angular.y);
-        let abs_rot_thrust = rel_rot_thrust.rotated(&rot);
-        let abs_rot_thrust_half = abs_rot_thrust.linear / 2.0;
+        let collider = RfEngine::collider_desc();
+        let part_translation = Vector3::new(
+            -platform_part.size.x / 2.0,
+            0.0,
+            -platform_part.size.z / 2.0,
+        );
+        let body = RfEngine::build_link(
+            "rf_engine.q2".to_string(),
+            part_translation,
+            &collider,
+            body,
+        );
 
-        self.power_dist_control.e0 = Force::linear(abs_rot_thrust_half + abs_thrust.linear);
-        self.power_dist_control.e1 = Force::linear(-abs_rot_thrust_half + abs_thrust.linear);
-        self.power_dist_control.e2 = Force::linear(-abs_rot_thrust_half + abs_thrust.linear);
-        self.power_dist_control.e3 = Force::linear(abs_rot_thrust_half + abs_thrust.linear);
+        let collider = RfEngine::collider_desc();
+        let part_translation =
+            Vector3::new(platform_part.size.x / 2.0, 0.0, -platform_part.size.z / 2.0);
+        let body = RfEngine::build_link(
+            "rf_engine.q3".to_string(),
+            part_translation,
+            &collider,
+            body,
+        );
 
-        self.power_dist.set_control(&self.power_dist_control, world);
+        // Build the multibody into the world
+        let mbody = body.build(world);
+
+        let platform_handle = Self::get_body_part("platform", &mbody);
+        let rfe_q0_handle = Self::get_body_part("rf_engine.q0", &mbody);
+        let rfe_q1_handle = Self::get_body_part("rf_engine.q1", &mbody);
+        let rfe_q2_handle = Self::get_body_part("rf_engine.q2", &mbody);
+        let rfe_q3_handle = Self::get_body_part("rf_engine.q3", &mbody);
+
+        let color = Point3::new(1.0, 0.3215, 0.3215);
+        let collider = Self::get_collider(platform_handle, world);
+        let platform_body = collider.body();
+        let platform_collider = collider.handle();
+        let platform_node = build_scene_node(&platform_part, collider, color, window);
+
+        let color = Point3::new(0.0, 1.0, 0.1019);
+        let collider = Self::get_collider(rfe_q0_handle, world);
+        let body = collider.body();
+        let handle = collider.handle();
+        let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
+        let force_gen = world.add_force_generator(ForceGen::new(body));
+        let rfe_q0 = RfEngine::new(body, handle, node, force_gen);
+
+        let color = Point3::new(0.0, 1.0, 0.1019);
+        let collider = Self::get_collider(rfe_q1_handle, world);
+        let body = collider.body();
+        let handle = collider.handle();
+        let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
+        let force_gen = world.add_force_generator(ForceGen::new(body));
+        let rfe_q1 = RfEngine::new(body, handle, node, force_gen);
+
+        let color = Point3::new(0.0, 1.0, 0.1019);
+        let collider = Self::get_collider(rfe_q2_handle, world);
+        let body = collider.body();
+        let handle = collider.handle();
+        let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
+        let force_gen = world.add_force_generator(ForceGen::new(body));
+        let rfe_q2 = RfEngine::new(body, handle, node, force_gen);
+
+        let color = Point3::new(0.0, 1.0, 0.1019);
+        let collider = Self::get_collider(rfe_q3_handle, world);
+        let body = collider.body();
+        let handle = collider.handle();
+        let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
+        let force_gen = world.add_force_generator(ForceGen::new(body));
+        let rfe_q3 = RfEngine::new(body, handle, node, force_gen);
+
+        Platform {
+            body: platform_body,
+            node: platform_node,
+            collider: platform_collider,
+            rfe_q0,
+            rfe_q1,
+            rfe_q2,
+            rfe_q3,
+        }
+    }
+
+    pub fn update(&mut self, world: &World<f32>, win: &mut Window) {
+        update_scene_node(self.collider, world, &mut self.node);
+        self.rfe_q0.update(world);
+        self.rfe_q1.update(world);
+        self.rfe_q2.update(world);
+        self.rfe_q3.update(world);
+
+        self.draw_velocity_vector(world, win);
+        self.rfe_q0.draw_force_vector(world, win);
+        self.rfe_q1.draw_force_vector(world, win);
+        self.rfe_q2.draw_force_vector(world, win);
+        self.rfe_q3.draw_force_vector(world, win);
+    }
+
+    fn get_body_part(name: &str, mbody: &Multibody<f32>) -> BodyPartHandle {
+        mbody.links_with_name(name).next().unwrap().part_handle()
+    }
+
+    fn get_collider<'a>(part_handle: BodyPartHandle, world: &'a World<f32>) -> &'a Collider<f32> {
+        world
+            .collider_world()
+            .body_part_colliders(part_handle)
+            .next()
+            .unwrap()
+    }
+
+    fn draw_velocity_vector(&self, world: &World<f32>, win: &mut Window) {
+        // TODO - configs
+        let color = Point3::new(0.0, 1.0, 0.0);
+        let scale = 0.5;
+        let surface_offset = 0.025;
+
+        let mut a = self.position(world).translation.vector;
+        a.y += surface_offset + Self::part_desc().size.y / 2.0;
+        let b = a + (self.velocity(world).linear * scale);
+
+        win.draw_line(&Point3::from(a), &Point3::from(b), &color);
     }
 }
