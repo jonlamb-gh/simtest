@@ -10,22 +10,15 @@ pub struct ForceGen {
     force: Force<f32>,
     local_point: Option<Point3<f32>>,
     local_force: bool,
-    idx: usize,
 }
 
 impl ForceGen {
-    pub fn new(
-        body: BodyHandle,
-        local_point: Option<Point3<f32>>,
-        local_force: bool,
-        idx: usize,
-    ) -> Self {
+    pub fn new(body: BodyHandle, local_point: Option<Point3<f32>>, local_force: bool) -> Self {
         ForceGen {
             body,
             force: Force::zero(),
             local_point,
             local_force,
-            idx,
         }
     }
 

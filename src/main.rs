@@ -79,6 +79,10 @@ impl State for AppState {
             self.platform
                 .set_control_setpoints(&self.setpoints, &mut self.world);
 
+            //            for b in self.world.bodies_mut() {
+            //                b.activate();
+            //            }
+
             self.world.step();
 
             self.ground.update(&self.world);

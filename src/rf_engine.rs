@@ -124,6 +124,11 @@ impl RfEngine {
         // Force::linear(p.rotation.inverse().transform_vector(&force.linear));
         println!("f {:#?}", force.linear);
 
+        // TODO
+        // switch to a velocity model for now
+        //  body.set_velocity(Velocity::linear(velocity_x, 0.0));
+        //  https://github.com/rustsim/nphysics/issues/124
+
         let force_gen = world
             .force_generator_mut(self.force_gen)
             .downcast_mut::<ForceGen>()

@@ -156,7 +156,7 @@ impl Platform {
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&AgEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(body, None, false, 0));
+        let force_gen = world.add_force_generator(ForceGen::new(body, None, false));
         let age = AgEngine::new(body, handle, node, force_gen);
 
         let color = Point3::new(0.0, 1.0, 0.1019);
@@ -169,7 +169,6 @@ impl Platform {
             Some(Point3::from(rfe_q0_part_translation)),
             true,
             //false,
-            1,
         ));
         let rfe_q0 = RfEngine::new(body, handle, node, force_gen);
 
@@ -182,7 +181,6 @@ impl Platform {
             body,
             Some(Point3::from(rfe_q1_part_translation)),
             true,
-            1,
         ));
         let rfe_q1 = RfEngine::new(body, handle, node, force_gen);
 
@@ -197,7 +195,6 @@ impl Platform {
             //None,
             true,
             //false,
-            3,
         ));
         let rfe_q2 = RfEngine::new(body, handle, node, force_gen);
 
@@ -210,7 +207,6 @@ impl Platform {
             body,
             Some(Point3::from(rfe_q3_part_translation)),
             true,
-            3,
         ));
         let rfe_q3 = RfEngine::new(body, handle, node, force_gen);
 
