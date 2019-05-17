@@ -1,11 +1,10 @@
 use crate::box_node::update_scene_node;
-use crate::force_gen::ForceGen;
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
-use nphysics3d::force_generator::ForceGeneratorHandle;
+use nphysics3d::algebra::ForceType;
 use nphysics3d::joint::FixedJoint;
 use nphysics3d::math::Force;
 use nphysics3d::math::Velocity;
@@ -16,7 +15,7 @@ pub struct AgEngine {
     body: BodyHandle,
     collider: ColliderHandle,
     node: SceneNode,
-    force_gen: ForceGeneratorHandle,
+    force: Force<f32>,
 }
 
 impl Part for AgEngine {
@@ -80,17 +79,12 @@ impl AgEngine {
         mbody
     }
 
-    pub fn new(
-        body: BodyHandle,
-        collider: ColliderHandle,
-        node: SceneNode,
-        force_gen: ForceGeneratorHandle,
-    ) -> Self {
+    pub fn new(body: BodyHandle, collider: ColliderHandle, node: SceneNode) -> Self {
         AgEngine {
             body,
             collider,
             node,
-            force_gen,
+            force: Force::zero(),
         }
     }
 
@@ -98,30 +92,37 @@ impl AgEngine {
         update_scene_node(self.collider, world, &mut self.node);
     }
 
-    pub fn force(&self, world: &World<f32>) -> Force<f32> {
-        let force_gen = world
-            .force_generator(self.force_gen)
-            .downcast_ref::<ForceGen>()
-            .unwrap();
-        force_gen.force()
+    pub fn force(&self) -> Force<f32> {
+        self.force
     }
 
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
-        let ag_force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
-        world
-            .force_generator_mut(self.force_gen)
-            .downcast_mut::<ForceGen>()
-            .unwrap()
-            .set_force(ag_force);
+        //        let ag_force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
+        //        world
+        //            .force_generator_mut(self.force_gen)
+        //            .downcast_mut::<ForceGen>()
+        //            .unwrap()
+        //            .set_force(ag_force);
+
+        self.force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
+
+        let body = world.body_mut(self.body).unwrap();
+        body.apply_force(0, &self.force, ForceType::Force, false);
+
+        //let body = world.collider(self.collider).unwrap().body();
+        //world
+        //    .body_mut(body)
+        //    .unwrap()
+        //    .apply_force(0, &self.force, ForceType::Force, true);
     }
 
     pub fn draw_force_vector(&self, world: &World<f32>, win: &mut Window) {
         // TODO - configs
         let color = Point3::new(0.0, 0.0, 1.0);
-        let scale = 0.25;
+        let scale = 0.1;
 
         let a = self.position(world).translation.vector;
-        let b = a + (self.force(world).linear * scale);
+        let b = a + (self.force().linear * scale);
 
         win.draw_line(&Point3::from(a), &Point3::from(b), &color);
     }

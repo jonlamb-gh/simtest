@@ -1,8 +1,7 @@
 use crate::ag_engine::AgEngine;
 use crate::box_node::{build_scene_node, update_scene_node};
 use crate::control_setpoints::ControlSetpoints;
-use crate::force_gen::ForceGen;
-use crate::na::{self, Isometry3, Point3, Vector3};
+use crate::na::{self, Isometry3, Matrix3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use crate::rf_engine::RfEngine;
 use kiss3d::scene::SceneNode;
@@ -85,6 +84,7 @@ impl Platform {
 
         let body = MultibodyDesc::new(root_joint)
             .mass(platform_part.mass)
+            //.angular_inertia(Matrix3::from_diagonal_element(1.0))
             .collider(&collider)
             .name("platform".to_string());
 
@@ -93,8 +93,8 @@ impl Platform {
         let body = AgEngine::build_link("ag_engine".to_string(), part_translation, &collider, body);
 
         let collider = RfEngine::collider_desc();
-        let rfe_q0_part_translation =
-            Vector3::new(platform_part.size.x / 2.0, 0.0, platform_part.size.z / 2.0);
+        let t = (platform_part.size / 2.0) + (RfEngine::part_desc().size / 2.0);
+        let rfe_q0_part_translation = Vector3::new(t.x, 0.0, t.z);
         let body = RfEngine::build_link(
             "rf_engine.q0".to_string(),
             rfe_q0_part_translation,
@@ -156,59 +156,35 @@ impl Platform {
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&AgEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(body, None, false));
-        let age = AgEngine::new(body, handle, node, force_gen);
+        let age = AgEngine::new(body, handle, node);
 
         let color = Point3::new(0.0, 1.0, 0.1019);
         let collider = Self::get_collider(rfe_q0_handle, world);
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(
-            body,
-            Some(Point3::from(rfe_q0_part_translation)),
-            true,
-            //false,
-        ));
-        let rfe_q0 = RfEngine::new(body, handle, node, force_gen);
+        let rfe_q0 = RfEngine::new(body, handle, node);
 
         let color = Point3::new(0.0, 1.0, 0.1019);
         let collider = Self::get_collider(rfe_q1_handle, world);
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(
-            body,
-            Some(Point3::from(rfe_q1_part_translation)),
-            true,
-        ));
-        let rfe_q1 = RfEngine::new(body, handle, node, force_gen);
+        let rfe_q1 = RfEngine::new(body, handle, node);
 
         let color = Point3::new(0.0, 1.0, 0.1019);
         let collider = Self::get_collider(rfe_q2_handle, world);
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(
-            body,
-            Some(Point3::from(rfe_q2_part_translation)),
-            //None,
-            true,
-            //false,
-        ));
-        let rfe_q2 = RfEngine::new(body, handle, node, force_gen);
+        let rfe_q2 = RfEngine::new(body, handle, node);
 
         let color = Point3::new(0.0, 1.0, 0.1019);
         let collider = Self::get_collider(rfe_q3_handle, world);
         let body = collider.body();
         let handle = collider.handle();
         let node = build_scene_node(&RfEngine::part_desc(), collider, color, window);
-        let force_gen = world.add_force_generator(ForceGen::new(
-            body,
-            Some(Point3::from(rfe_q3_part_translation)),
-            true,
-        ));
-        let rfe_q3 = RfEngine::new(body, handle, node, force_gen);
+        let rfe_q3 = RfEngine::new(body, handle, node);
 
         Platform {
             body: platform_body,
@@ -254,13 +230,13 @@ impl Platform {
         //            f.linear.z += setpoints.lat_force;
         //        }
 
-        //rfe_forces[2].linear.x = 0.0;
+        rfe_forces[2].linear.x = 1.0;
         rfe_forces[2].linear.z = -3.0;
         //rfe_forces[2].linear.y = -10.0;
 
         rfe_forces[0].linear.z = 3.0;
 
-        self.rfe_q0.set_force(rfe_forces[0], world);
+        //self.rfe_q0.set_force(rfe_forces[0], world);
         self.rfe_q2.set_force(rfe_forces[2], world);
 
         //        self.rf_engines_mut()

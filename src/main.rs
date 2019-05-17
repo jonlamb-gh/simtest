@@ -41,6 +41,8 @@ impl AppState {
 
         let platform = Platform::new(&mut world, Vector3::new(0.0, 2.0, 0.0), window);
 
+        world.step();
+
         AppState {
             arc_ball,
             world,
