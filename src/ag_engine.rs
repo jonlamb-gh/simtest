@@ -1,6 +1,6 @@
 use crate::box_node::update_scene_node;
 use crate::force_gen::ForceGen;
-use crate::na::{Isometry3, Point3, Rotation3, Vector3};
+use crate::na::{Isometry3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
@@ -12,17 +12,17 @@ use nphysics3d::math::Velocity;
 use nphysics3d::object::{BodyHandle, ColliderDesc, ColliderHandle, MultibodyDesc};
 use nphysics3d::world::World;
 
-pub struct RfEngine {
+pub struct AgEngine {
     body: BodyHandle,
     collider: ColliderHandle,
     node: SceneNode,
     force_gen: ForceGeneratorHandle,
 }
 
-impl Part for RfEngine {
+impl Part for AgEngine {
     fn part_desc() -> PartDesc {
         PartDesc {
-            size: Vector3::new(0.1, 0.1, 0.1),
+            size: Vector3::new(0.08, 0.08, 0.08),
             mass: 0.1,
             density: 0.3,
         }
@@ -58,7 +58,7 @@ impl Part for RfEngine {
     }
 }
 
-impl RfEngine {
+impl AgEngine {
     pub fn build_link<'a>(
         name: String,
         translation: Vector3<f32>,
@@ -86,7 +86,7 @@ impl RfEngine {
         node: SceneNode,
         force_gen: ForceGeneratorHandle,
     ) -> Self {
-        RfEngine {
+        AgEngine {
             body,
             collider,
             node,
@@ -98,7 +98,6 @@ impl RfEngine {
         update_scene_node(self.collider, world, &mut self.node);
     }
 
-    // TODO - this is the world frame, make this relative, update force vector after
     pub fn force(&self, world: &World<f32>) -> Force<f32> {
         let force_gen = world
             .force_generator(self.force_gen)
@@ -107,28 +106,13 @@ impl RfEngine {
         force_gen.force()
     }
 
-    // TODO Apply a relative force
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
-        let p = self.position(world);
-        // TODO - issues with ForceGen local force/point misunderstandings
-        // seems like the force is applied until body moves, like the point
-        // is in the world frame?
-        //
-        //let rotation = Rotation3::from(p.rotation);
-        //println!("t {:#?}", p.translation);
-        //println!("{:#?}", p.rotation.euler_angles());
-        //let force = Force::linear(p.rotation.inverse() * force.linear);
-        //let force = Force::linear(rotation * force.linear);
-        let force = Force::linear(p.rotation.transform_vector(&force.linear));
-        //let force =
-        // Force::linear(p.rotation.inverse().transform_vector(&force.linear));
-        println!("f {:#?}", force.linear);
-
-        let force_gen = world
+        let ag_force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
+        world
             .force_generator_mut(self.force_gen)
             .downcast_mut::<ForceGen>()
-            .unwrap();
-        force_gen.set_force(force);
+            .unwrap()
+            .set_force(ag_force);
     }
 
     pub fn draw_force_vector(&self, world: &World<f32>, win: &mut Window) {
