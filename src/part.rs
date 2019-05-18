@@ -1,6 +1,6 @@
 use crate::na::{Isometry3, Vector3};
 use nphysics3d::math::Velocity;
-use nphysics3d::object::{BodyHandle, ColliderDesc, ColliderHandle};
+use nphysics3d::object::{BodyPartHandle, ColliderDesc, ColliderHandle};
 use nphysics3d::world::World;
 
 pub struct PartDesc {
@@ -15,7 +15,7 @@ pub trait Part {
 
     fn collider_desc() -> ColliderDesc<f32>;
 
-    fn body(&self) -> BodyHandle;
+    fn body_part(&self) -> BodyPartHandle;
 
     fn object(&self) -> ColliderHandle;
 

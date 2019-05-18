@@ -1,18 +1,18 @@
-use crate::box_node::update_scene_node;
-use crate::na::{Isometry3, Point3, Rotation3, Vector3};
+use crate::box_node::{build_scene_node, update_scene_node};
+use crate::na::{Isometry3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
+use ncollide3d::world::CollisionGroups;
 use nphysics3d::algebra::ForceType;
-use nphysics3d::joint::FixedJoint;
 use nphysics3d::math::Force;
 use nphysics3d::math::Velocity;
-use nphysics3d::object::{Body, BodyHandle, ColliderDesc, ColliderHandle, MultibodyDesc};
+use nphysics3d::object::{BodyPartHandle, ColliderDesc, ColliderHandle};
 use nphysics3d::world::World;
 
 pub struct RfEngine {
-    body: BodyHandle,
+    body: BodyPartHandle,
     collider: ColliderHandle,
     node: SceneNode,
     force: Force<f32>,
@@ -23,7 +23,7 @@ impl Part for RfEngine {
         PartDesc {
             size: Vector3::new(0.1, 0.1, 0.1),
             mass: 0.1,
-            density: 0.3,
+            density: 1.0,
         }
     }
 
@@ -33,7 +33,7 @@ impl Part for RfEngine {
         ColliderDesc::new(ShapeHandle::new(shape)).density(part.density)
     }
 
-    fn body(&self) -> BodyHandle {
+    fn body_part(&self) -> BodyPartHandle {
         self.body
     }
 
@@ -43,46 +43,39 @@ impl Part for RfEngine {
 
     fn position(&self, world: &World<f32>) -> Isometry3<f32> {
         *world.collider(self.collider).unwrap().position()
-
-        // TODO - is the part or the parent?
-        //world.body(self.body).unwrap().part(0).unwrap().position()
     }
 
     fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
-        // TODO - is the part or the parent?
-        //world.body(self.body).unwrap().part(0).unwrap().velocity()
-
         let body = world.collider(self.collider).unwrap().body();
         world.body(body).unwrap().part(0).unwrap().velocity()
     }
 }
 
 impl RfEngine {
-    pub fn build_link<'a>(
-        name: String,
+    pub fn new(
+        parent: BodyPartHandle,
         translation: Vector3<f32>,
-        collider: &'a ColliderDesc<f32>,
-        mut mbody: MultibodyDesc<'a, f32>,
-    ) -> MultibodyDesc<'a, f32> {
+        world: &mut World<f32>,
+        window: &mut Window,
+    ) -> Self {
+        // TODO - configs
+        let mut group = CollisionGroups::new();
+        group.set_membership(&[1]);
+        group.set_whitelist(&[1]);
+
         let part = Self::part_desc();
+        let collider_desc = Self::collider_desc()
+            .translation(translation)
+            .collision_groups(group);
+        let collider = collider_desc.build_with_parent(parent, world).unwrap();
+        let handle = collider.handle();
 
-        //let joint = FixedJoint::new(Isometry3::new(translation, na::zero()));
-        let joint = FixedJoint::new(Isometry3::identity());
+        let color = Point3::new(0.0, 1.0, 0.1019);
+        let node = build_scene_node(&part, collider, color, window);
 
-        mbody
-            .add_child(joint)
-            .add_collider(collider)
-            .set_mass(part.mass)
-            .set_parent_shift(translation)
-            .set_name(name);
-
-        mbody
-    }
-
-    pub fn new(body: BodyHandle, collider: ColliderHandle, node: SceneNode) -> Self {
         RfEngine {
-            body,
-            collider,
+            body: parent,
+            collider: handle,
             node,
             force: Force::zero(),
         }
@@ -92,67 +85,28 @@ impl RfEngine {
         update_scene_node(self.collider, world, &mut self.node);
     }
 
-    // TODO - relative
     pub fn force(&self) -> Force<f32> {
         self.force
     }
 
-    // TODO - relative
+    // Local frame
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
-        let p = self.position(world);
-        // TODO - issues with ForceGen local force/point misunderstandings
-        // seems like the force is applied until body moves, like the point
-        // is in the world frame?
-        //
-        //let rotation = Rotation3::from(p.rotation);
-        //println!("t {:#?}", p.translation);
-        //println!("{:#?}", p.rotation.euler_angles());
-        //let force = Force::linear(p.rotation.inverse() * force.linear);
-        //let force = Force::linear(rotation * force.linear);
-        //let force = Force::linear(p.rotation.transform_vector(&force.linear));
-        //let force =
-        // Force::linear(p.rotation.inverse().transform_vector(&force.linear));
-        //println!("f {:#?}", force.linear);
+        self.force = force;
 
-        // TODO
-        // switch to a velocity model for now
-        //  body.set_velocity(Velocity::linear(velocity_x, 0.0));
-        //  https://github.com/rustsim/nphysics/issues/124
+        let p = world.collider(self.collider).unwrap().position_wrt_body();
 
-        //self.force = force;
-        self.force = Force::linear(p.rotation.transform_vector(&force.linear));
+        // Local point is the collider's translation wrt the parent body
+        let point = Point3::new(p.translation.x, p.translation.y, p.translation.z);
 
-        //let body = world.body_mut(self.body).unwrap();
-        let body = world.multibody_mut(self.body).unwrap();
+        let body = world.body_mut(self.body.0).unwrap();
 
-        // mbody.links()
-        // yields:
-        //link ID 0 'platform'
-        //link ID 1 'ag_engine'
-        //link ID 2 'rf_engine.q0'
-        //link ID 3 'rf_engine.q1'
-        //link ID 4 'rf_engine.q2'
-        //link ID 5 'rf_engine.q3'
-
-        //body.apply_local_force(2, &self.force, ForceType::Force, false);
-
-        let point = Point3::new(
-            p.translation.vector.x,
-            //p.translation.vector.y,
-            0.0,
-            p.translation.vector.z,
+        body.apply_local_force_at_local_point(
+            self.body.1,
+            &force.linear,
+            &point,
+            ForceType::Force,
+            false,
         );
-
-        //body.apply_local_force(4, &self.force, ForceType::Force, false);
-        body.apply_force(4, &self.force, ForceType::Force, false);
-
-        //        body.apply_local_force_at_local_point(
-        //            4,
-        //            &self.force.linear,
-        //            &point,
-        //            ForceType::Force,
-        //            false,
-        //        );
     }
 
     pub fn draw_force_vector(&self, world: &World<f32>, win: &mut Window) {
@@ -160,8 +114,10 @@ impl RfEngine {
         let color = Point3::new(0.0, 0.0, 1.0);
         let scale = 0.25;
 
-        let a = self.position(world).translation.vector;
-        let b = a + (self.force().linear * scale);
+        let p = self.position(world);
+        let f = p.rotation.transform_vector(&self.force().linear);
+        let a = p.translation.vector;
+        let b = a + (f * scale);
 
         win.draw_line(&Point3::from(a), &Point3::from(b), &color);
     }

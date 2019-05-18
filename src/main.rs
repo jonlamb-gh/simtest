@@ -1,7 +1,6 @@
 mod ag_engine;
 mod box_node;
 mod control_setpoints;
-mod force_gen;
 mod ground;
 mod part;
 mod platform;
@@ -39,7 +38,7 @@ impl AppState {
 
         let ground = Ground::new(&mut world, window);
 
-        let platform = Platform::new(&mut world, Vector3::new(0.0, 2.0, 0.0), window);
+        let platform = Platform::new(Vector3::new(0.0, 2.0, 0.0), &mut world, window);
 
         world.step();
 
@@ -54,8 +53,7 @@ impl AppState {
 
     fn update_setpoints(&mut self) {
         // TODO
-        //self.setpoints.ag_force = 9.81;
-        self.setpoints.ag_force = 6.0;
+        self.setpoints.ag_force = 10.0;
 
         //self.setpoints.long_force = 5.0;
 

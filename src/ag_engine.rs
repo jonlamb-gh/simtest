@@ -1,18 +1,18 @@
-use crate::box_node::update_scene_node;
+use crate::box_node::{build_scene_node, update_scene_node};
 use crate::na::{Isometry3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
+use ncollide3d::world::CollisionGroups;
 use nphysics3d::algebra::ForceType;
-use nphysics3d::joint::FixedJoint;
 use nphysics3d::math::Force;
 use nphysics3d::math::Velocity;
-use nphysics3d::object::{BodyHandle, ColliderDesc, ColliderHandle, MultibodyDesc};
+use nphysics3d::object::{BodyPartHandle, ColliderDesc, ColliderHandle};
 use nphysics3d::world::World;
 
 pub struct AgEngine {
-    body: BodyHandle,
+    body: BodyPartHandle,
     collider: ColliderHandle,
     node: SceneNode,
     force: Force<f32>,
@@ -23,7 +23,7 @@ impl Part for AgEngine {
         PartDesc {
             size: Vector3::new(0.08, 0.08, 0.08),
             mass: 0.1,
-            density: 0.3,
+            density: 1.0,
         }
     }
 
@@ -33,7 +33,7 @@ impl Part for AgEngine {
         ColliderDesc::new(ShapeHandle::new(shape)).density(part.density)
     }
 
-    fn body(&self) -> BodyHandle {
+    fn body_part(&self) -> BodyPartHandle {
         self.body
     }
 
@@ -43,46 +43,39 @@ impl Part for AgEngine {
 
     fn position(&self, world: &World<f32>) -> Isometry3<f32> {
         *world.collider(self.collider).unwrap().position()
-
-        // TODO - is the part or the parent?
-        //world.body(self.body).unwrap().part(0).unwrap().position()
     }
 
     fn velocity(&self, world: &World<f32>) -> Velocity<f32> {
-        // TODO - is the part or the parent?
-        //world.body(self.body).unwrap().part(0).unwrap().velocity()
-
         let body = world.collider(self.collider).unwrap().body();
         world.body(body).unwrap().part(0).unwrap().velocity()
     }
 }
 
 impl AgEngine {
-    pub fn build_link<'a>(
-        name: String,
+    pub fn new(
+        parent: BodyPartHandle,
         translation: Vector3<f32>,
-        collider: &'a ColliderDesc<f32>,
-        mut mbody: MultibodyDesc<'a, f32>,
-    ) -> MultibodyDesc<'a, f32> {
+        world: &mut World<f32>,
+        window: &mut Window,
+    ) -> Self {
+        // TODO - configs
+        let mut group = CollisionGroups::new();
+        group.set_membership(&[1]);
+        group.set_whitelist(&[1]);
+
         let part = Self::part_desc();
+        let collider_desc = Self::collider_desc()
+            .translation(translation)
+            .collision_groups(group);
+        let collider = collider_desc.build_with_parent(parent, world).unwrap();
+        let handle = collider.handle();
 
-        //let joint = FixedJoint::new(Isometry3::new(translation, na::zero()));
-        let joint = FixedJoint::new(Isometry3::identity());
+        let color = Point3::new(0.0, 0.6352, 1.0);
+        let node = build_scene_node(&part, collider, color, window);
 
-        mbody
-            .add_child(joint)
-            .add_collider(collider)
-            .set_mass(part.mass)
-            .set_parent_shift(translation)
-            .set_name(name);
-
-        mbody
-    }
-
-    pub fn new(body: BodyHandle, collider: ColliderHandle, node: SceneNode) -> Self {
         AgEngine {
-            body,
-            collider,
+            body: parent,
+            collider: handle,
             node,
             force: Force::zero(),
         }
@@ -96,24 +89,11 @@ impl AgEngine {
         self.force
     }
 
+    // World frame
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
-        //        let ag_force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
-        //        world
-        //            .force_generator_mut(self.force_gen)
-        //            .downcast_mut::<ForceGen>()
-        //            .unwrap()
-        //            .set_force(ag_force);
-
         self.force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
-
-        let body = world.body_mut(self.body).unwrap();
+        let body = world.body_mut(self.body.0).unwrap();
         body.apply_force(0, &self.force, ForceType::Force, false);
-
-        //let body = world.collider(self.collider).unwrap().body();
-        //world
-        //    .body_mut(body)
-        //    .unwrap()
-        //    .apply_force(0, &self.force, ForceType::Force, true);
     }
 
     pub fn draw_force_vector(&self, world: &World<f32>, win: &mut Window) {
