@@ -85,8 +85,8 @@ impl RfEngine {
         update_scene_node(self.collider, world, &mut self.node);
     }
 
-    pub fn force(&self) -> Force<f32> {
-        self.force
+    pub fn force(&self) -> &Force<f32> {
+        &self.force
     }
 
     // Local frame
@@ -105,7 +105,7 @@ impl RfEngine {
             &force.linear,
             &point,
             ForceType::Force,
-            false,
+            true,
         );
     }
 

@@ -1,16 +1,19 @@
 mod ag_engine;
 mod box_node;
-mod control_setpoints;
+mod config;
+mod controller;
 mod ground;
 mod part;
 mod platform;
 mod rf_engine;
+mod util;
 
 use nalgebra as na;
 
-use crate::control_setpoints::ControlSetpoints;
+use crate::controller::Controller;
 use crate::ground::Ground;
 use crate::na::{Point3, Vector3};
+use crate::part::Part;
 use crate::platform::Platform;
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
@@ -18,18 +21,19 @@ use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::window::{State, Window};
 use nphysics3d::world::World;
-//use crate::part::Part;
 
 struct AppState {
+    controller: Controller,
     arc_ball: ArcBall,
     world: World<f32>,
     ground: Ground,
     platform: Platform,
-    setpoints: ControlSetpoints,
 }
 
 impl AppState {
     fn new(window: &mut Window) -> Self {
+        let controller = Controller::new();
+
         let arc_ball = ArcBall::new(Point3::new(-5.0, 5.0, -5.0), Point3::new(0.0, 0.0, 0.0));
 
         let mut world = World::new();
@@ -43,21 +47,12 @@ impl AppState {
         world.step();
 
         AppState {
+            controller,
             arc_ball,
             world,
             ground,
             platform,
-            setpoints: ControlSetpoints::new(),
         }
-    }
-
-    fn update_setpoints(&mut self) {
-        // TODO
-        self.setpoints.ag_force = 10.0;
-
-        //self.setpoints.long_force = 5.0;
-
-        //self.setpoints.lat_force = 5.0;
     }
 }
 
@@ -74,22 +69,25 @@ impl State for AppState {
 
     fn step(&mut self, win: &mut Window) {
         if !win.is_closed() && !win.should_close() {
-            self.update_setpoints();
-
             self.platform
-                .set_control_setpoints(&self.setpoints, &mut self.world);
-
-            //            for b in self.world.bodies_mut() {
-            //                b.activate();
-            //            }
+                .set_control_setpoints(self.controller.update(), &mut self.world);
 
             self.world.step();
+
+            let p = self.platform.position(&self.world);
+            //self.arc_ball.set_at(Point3::new(
+            //    p.translation.x,
+            //    p.translation.y,
+            //   p.translation.z,
+            //));
+            self.arc_ball.look_at(
+                Point3::new(-5.0, 5.0, -5.0),
+                Point3::new(p.translation.x, p.translation.y, p.translation.z),
+            );
 
             self.ground.update(&self.world);
 
             self.platform.update(&self.world, win);
-
-            //println!("{:#?}", self.platform.velocity(&self.world));
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::ag_engine::AgEngine;
 use crate::box_node::{build_scene_node, update_scene_node};
-use crate::control_setpoints::ControlSetpoints;
+use crate::controller::ControlSetpoints;
 use crate::na::{Isometry3, Matrix3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use crate::rf_engine::RfEngine;
@@ -29,7 +29,7 @@ impl Part for Platform {
     fn part_desc() -> PartDesc {
         PartDesc {
             size: Vector3::new(2.0, 0.05, 1.0),
-            mass: 10.0,
+            mass: 5.0,
             density: 1.0,
             //angular_inertia: 3.0,
         }
@@ -153,11 +153,6 @@ impl Platform {
             f.linear.x += setpoints.long_force;
             f.linear.z += setpoints.lat_force;
         }
-
-        //rfe_forces[2].linear.x = 1.0;
-        //rfe_forces[2].linear.y = -10.0;
-        rfe_forces[2].linear.z = -5.0;
-        rfe_forces[0].linear.z = 5.0;
 
         self.rf_engines_mut()
             .iter_mut()

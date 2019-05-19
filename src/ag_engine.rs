@@ -85,15 +85,15 @@ impl AgEngine {
         update_scene_node(self.collider, world, &mut self.node);
     }
 
-    pub fn force(&self) -> Force<f32> {
-        self.force
+    pub fn force(&self) -> &Force<f32> {
+        &self.force
     }
 
     // World frame
     pub fn set_force(&mut self, force: Force<f32>, world: &mut World<f32>) {
         self.force = Force::linear(Vector3::new(0.0, force.linear.y, 0.0));
         let body = world.body_mut(self.body.0).unwrap();
-        body.apply_force(0, &self.force, ForceType::Force, false);
+        body.apply_force(0, &self.force, ForceType::Force, true);
     }
 
     pub fn draw_force_vector(&self, world: &World<f32>, win: &mut Window) {
