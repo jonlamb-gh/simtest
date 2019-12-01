@@ -5,9 +5,9 @@ authors = ["Jon Lamb"]
 edition = "2018"
 
 [dependencies]
-nphysics_testbed3d = "0.5.0"
 nphysics3d = "0.11.1"
 nalgebra = "0.18"
 kiss3d = "0.19"
 ncollide3d = "0.19"
 gilrs = "0.7"
+pid = "1.2"

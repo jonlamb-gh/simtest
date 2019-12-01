@@ -10,7 +10,7 @@ mod util;
 
 use nalgebra as na;
 
-use crate::controller::Controller;
+use crate::controller::{Controller, Inputs, Outputs};
 use crate::ground::Ground;
 use crate::na::{Point3, Vector3};
 use crate::part::Part;
@@ -69,21 +69,33 @@ impl State for AppState {
 
     fn step(&mut self, win: &mut Window) {
         if !win.is_closed() && !win.should_close() {
-            self.platform
-                .set_control_setpoints(self.controller.update(), &mut self.world);
+            let p = self.platform.position(&self.world);
+            let v_world = self.platform.velocity(&self.world);
+
+            let inputs = Inputs {
+                rot: p.rotation,
+                vel: v_world,
+            };
+
+            let outputs = self.controller.update(&inputs);
+
+            self.platform.apply_forces(outputs, &mut self.world);
 
             self.world.step();
 
-            let p = self.platform.position(&self.world);
-            //self.arc_ball.set_at(Point3::new(
-            //    p.translation.x,
-            //    p.translation.y,
-            //   p.translation.z,
-            //));
-            self.arc_ball.look_at(
-                Point3::new(-5.0, 5.0, -5.0),
-                Point3::new(p.translation.x, p.translation.y, p.translation.z),
-            );
+            // TODO
+            if true == true {
+                self.arc_ball.set_at(Point3::new(
+                    p.translation.x,
+                    p.translation.y,
+                    p.translation.z,
+                ));
+            } else {
+                self.arc_ball.look_at(
+                    Point3::new(-5.0, 5.0, -5.0),
+                    Point3::new(p.translation.x, p.translation.y, p.translation.z),
+                );
+            }
 
             self.ground.update(&self.world);
 

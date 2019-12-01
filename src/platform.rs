@@ -1,6 +1,6 @@
 use crate::ag_engine::AgEngine;
 use crate::box_node::{build_scene_node, update_scene_node};
-use crate::controller::ControlSetpoints;
+use crate::controller::Outputs;
 use crate::na::{Isometry3, Matrix3, Point3, Vector3};
 use crate::part::{Part, PartDesc};
 use crate::rf_engine::RfEngine;
@@ -77,7 +77,8 @@ impl Platform {
             .angular_inertia(Matrix3::from_diagonal_element(3.0))
             .mass(platform_part.mass)
             .name("platform".to_string())
-            //.gravity_enabled(false)
+            // TODO - add constant force gen on ag engine
+            .gravity_enabled(false)
             .collider(&collider)
             .build(world);
 
@@ -142,16 +143,27 @@ impl Platform {
         }
     }
 
-    pub fn set_control_setpoints(&mut self, setpoints: &ControlSetpoints, world: &mut World<f32>) {
-        self.age.set_force(
-            Force::linear(Vector3::new(0.0, setpoints.ag_force, 0.0)),
-            world,
-        );
+    pub fn apply_forces(&mut self, outputs: &Outputs, world: &mut World<f32>) {
+        self.age.set_force(outputs.ag_force, world);
 
+        // Q0:Q3
         let mut rfe_forces = [Force::<f32>::zero(); 4];
+
+        // Convert pseudo torque into symmetric forces
+        // Yaw
+        rfe_forces[0].linear.z -= outputs.pseudo_torque.y;
+        rfe_forces[3].linear.z -= outputs.pseudo_torque.y;
+        rfe_forces[1].linear.z += outputs.pseudo_torque.y;
+        rfe_forces[2].linear.z += outputs.pseudo_torque.y;
+
+        // Pitch
+        rfe_forces[0].linear.y += outputs.pseudo_torque.z;
+        rfe_forces[3].linear.y += outputs.pseudo_torque.z;
+        rfe_forces[1].linear.y -= outputs.pseudo_torque.z;
+        rfe_forces[2].linear.y -= outputs.pseudo_torque.z;
+
         for f in &mut rfe_forces {
-            f.linear.x += setpoints.long_force;
-            f.linear.z += setpoints.lat_force;
+            f.linear += outputs.long_force.linear;
         }
 
         self.rf_engines_mut()
