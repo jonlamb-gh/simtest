@@ -1,57 +1,70 @@
-mod ag_engine;
-mod box_node;
 mod config;
-mod controller;
-mod ground;
-mod part;
-mod platform;
-mod rf_engine;
+//mod controller;
+//mod ground;
+mod box_node;
 mod util;
 
 use nalgebra as na;
 
-use crate::controller::{Controller, Inputs, Outputs};
-use crate::ground::Ground;
+//use crate::controller::{Controller, Inputs, Outputs};
+//use crate::ground::Ground;
 use crate::na::{Point3, Vector3};
-use crate::part::Part;
-use crate::platform::Platform;
 use kiss3d::camera::{ArcBall, Camera};
 use kiss3d::light::Light;
 use kiss3d::planar_camera::PlanarCamera;
 use kiss3d::post_processing::PostProcessingEffect;
 use kiss3d::window::{State, Window};
-use nphysics3d::world::World;
+use nphysics3d::force_generator::DefaultForceGeneratorSet;
+use nphysics3d::joint::DefaultJointConstraintSet;
+use nphysics3d::object::{
+    BodyPartHandle, ColliderDesc, DefaultBodySet, DefaultColliderSet, Ground, RigidBodyDesc,
+};
+use nphysics3d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
 struct AppState {
-    controller: Controller,
+    //controller: Controller,
     arc_ball: ArcBall,
-    world: World<f32>,
-    ground: Ground,
-    platform: Platform,
+    mechanical_world: DefaultMechanicalWorld<f32>,
+    geometrical_world: DefaultGeometricalWorld<f32>,
+    bodies: DefaultBodySet<f32>,
+    colliders: DefaultColliderSet<f32>,
+    constraints: DefaultJointConstraintSet<f32>,
+    forces: DefaultForceGeneratorSet<f32>,
+    //ground: Ground,
+    //platform: Platform,
 }
 
 impl AppState {
     fn new(window: &mut Window) -> Self {
-        let controller = Controller::new();
+        //let controller = Controller::new();
 
         let arc_ball = ArcBall::new(Point3::new(-5.0, 5.0, -5.0), Point3::new(0.0, 0.0, 0.0));
 
-        let mut world = World::new();
         // TODO - configs
-        world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
+        let mechanical_world = DefaultMechanicalWorld::new(Vector3::new(0.0, -9.81, 0.0));
+        let geometrical_world = DefaultGeometricalWorld::new();
+        let mut bodies = DefaultBodySet::new();
+        let mut colliders = DefaultColliderSet::new();
+        let joint_constraints = DefaultJointConstraintSet::new();
+        let force_generators = DefaultForceGeneratorSet::new();
 
-        let ground = Ground::new(&mut world, window);
+        //let ground = Ground::new(&mut world, window);
 
-        let platform = Platform::new(Vector3::new(0.0, 2.0, 0.0), &mut world, window);
+        //let platform = Platform::new(Vector3::new(0.0, 2.0, 0.0), &mut world, window);
 
-        world.step();
+        //world.step();
 
         AppState {
-            controller,
+            //controller,
             arc_ball,
-            world,
-            ground,
-            platform,
+            mechanical_world,
+            geometrical_world,
+            bodies,
+            colliders,
+            constraints: joint_constraints,
+            forces: force_generators,
+            //ground,
+            //platform,
         }
     }
 }
@@ -60,46 +73,53 @@ impl State for AppState {
     fn cameras_and_effect(
         &mut self,
     ) -> (
-        Option<&mut Camera>,
-        Option<&mut PlanarCamera>,
-        Option<&mut PostProcessingEffect>,
+        Option<&mut dyn Camera>,
+        Option<&mut dyn PlanarCamera>,
+        Option<&mut dyn PostProcessingEffect>,
     ) {
         (Some(&mut self.arc_ball), None, None)
     }
 
     fn step(&mut self, win: &mut Window) {
         if !win.is_closed() && !win.should_close() {
-            let p = self.platform.position(&self.world);
-            let v_world = self.platform.velocity(&self.world);
+            //let p = self.platform.position(&self.world);
+            //let v_world = self.platform.velocity(&self.world);
 
-            let inputs = Inputs {
-                rot: p.rotation,
-                vel: v_world,
-            };
+            //let inputs = Inputs {
+            //    rot: p.rotation,
+            //    vel: v_world,
+            //};
 
-            let outputs = self.controller.update(&inputs);
+            //let outputs = self.controller.update(&inputs);
 
-            self.platform.apply_forces(outputs, &mut self.world);
+            //self.platform.apply_forces(outputs, &mut self.world);
 
-            self.world.step();
+            //self.world.step();
+            self.mechanical_world.step(
+                &mut self.geometrical_world,
+                &mut self.bodies,
+                &mut self.colliders,
+                &mut self.constraints,
+                &mut self.forces,
+            );
 
             // TODO
             if true == true {
-                self.arc_ball.set_at(Point3::new(
-                    p.translation.x,
-                    p.translation.y,
-                    p.translation.z,
-                ));
+                //self.arc_ball.set_at(Point3::new(
+                //    p.translation.x,
+                //    p.translation.y,
+                //    p.translation.z,
+                //));
             } else {
-                self.arc_ball.look_at(
-                    Point3::new(-5.0, 5.0, -5.0),
-                    Point3::new(p.translation.x, p.translation.y, p.translation.z),
-                );
+                //self.arc_ball.look_at(
+                //    Point3::new(-5.0, 5.0, -5.0),
+                //    Point3::new(p.translation.x, p.translation.y, p.translation.z),
+                //);
             }
 
-            self.ground.update(&self.world);
+            //self.ground.update(&self.world);
 
-            self.platform.update(&self.world, win);
+            //self.platform.update(&self.world, win);
         }
     }
 }
