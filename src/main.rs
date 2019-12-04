@@ -1,16 +1,3 @@
-// https://nphysics.org/rustdoc/nphysics3d/index.html
-// https://github.com/rustsim/nphysics/blob/master/examples3d/ragdoll3.rs
-// https://github.com/rustsim/nphysics/blob/master/examples3d/multibody3.rs
-//
-// https://nphysics.org/rustdoc/nphysics3d/object/trait.Body.html#tymethod.apply_local_force
-//
-// issues with apply force
-// https://github.com/rustsim/nphysics/search?q=apply+force&type=Issues
-//
-// might need mass/etc first
-
-// TODO - just use a single rigid body instead of multi-body with joints/links
-
 //mod controller;
 mod base_frame;
 mod box_node;

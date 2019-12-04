@@ -1,20 +1,22 @@
 use crate::base_frame::BaseFrame;
 use crate::box_node::build_scene_node;
-use crate::na::{Isometry3, Point3, Vector3};
+use crate::na::{Point3, Vector3};
 use crate::rf_engine::RfEngine;
 use kiss3d::window;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
-use nphysics3d::algebra::ForceType;
-use nphysics3d::joint::{FixedJoint, FreeJoint};
 use nphysics3d::math::Force;
 use nphysics3d::object::Body;
 use nphysics3d::object::{
-    BodyPartHandle, ColliderDesc, DefaultBodySet, DefaultColliderSet, MultibodyDesc, RigidBodyDesc,
+    BodyPartHandle, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
 };
 
 pub struct Platform {
     base_frame: BaseFrame,
+    rfe_fl: RfEngine,
+    rfe_fr: RfEngine,
+    rfe_rl: RfEngine,
+    rfe_rr: RfEngine,
 }
 
 impl Platform {
@@ -31,7 +33,7 @@ impl Platform {
 
         let base_shape = ShapeHandle::new(Cuboid::new(BaseFrame::size()));
         let body_collider = ColliderDesc::new(base_shape).density(density);
-        let mut body = RigidBodyDesc::new()
+        let body = RigidBodyDesc::new()
             .translation(Vector3::new(0.0, start_y, 0.0))
             .mass(platform_mass)
             .gravity_enabled(false);
@@ -50,63 +52,58 @@ impl Platform {
         let node = build_scene_node(collider, colliders, half_extents, color, window);
         let base_frame = BaseFrame::new(body_part, collider, node);
 
-        Platform { base_frame }
+        let rfe_fl_pos = Vector3::new(BaseFrame::size().x / 2.0, 0.0, BaseFrame::size().z / -2.0);
+        let rfe_fl = RfEngine::new(rfe_fl_pos);
+
+        let rfe_fr_pos = Vector3::new(BaseFrame::size().x / 2.0, 0.0, BaseFrame::size().z / 2.0);
+        let rfe_fr = RfEngine::new(rfe_fr_pos);
+
+        let rfe_rl_pos = Vector3::new(BaseFrame::size().x / -2.0, 0.0, BaseFrame::size().z / -2.0);
+        let rfe_rl = RfEngine::new(rfe_rl_pos);
+
+        let rfe_rr_pos = Vector3::new(BaseFrame::size().x / -2.0, 0.0, BaseFrame::size().z / 2.0);
+        let rfe_rr = RfEngine::new(rfe_rr_pos);
+
+        Platform {
+            base_frame,
+            rfe_fl,
+            rfe_fr,
+            rfe_rl,
+            rfe_rr,
+        }
     }
 
     pub fn apply_forces(
         &mut self,
         bodies: &mut DefaultBodySet<f32>,
-        colliders: &DefaultColliderSet<f32>,
+        _colliders: &DefaultColliderSet<f32>,
     ) {
         // TODO
-        //        self.rfe_fr.set_force(
-        //            Force::linear(Vector3::new(0.0, 5.0, 0.0)),
-        //            bodies,
-        //            colliders,
-        //        );
-
-        let point = Point3::new(1.0, 0.0, 1.0);
-
-        //let co = colliders.get(self.collider).unwrap();
-        //let body = bodies.get_mut(co.body()).unwrap();
-
-        let body = bodies.get_mut(self.base_frame.body_part.0).unwrap();
-
         let force = Force::linear(Vector3::new(0.0, 1.0, 0.0));
+        self.rfe_fr.set_force(force);
 
-        body.apply_local_force_at_local_point(
-            self.base_frame.body_part.1,
-            &force.linear,
-            &point,
-            ForceType::Force,
-            true,
-        );
+        let body_part = *self.base_frame.body_part();
+        self.rf_engines()
+            .iter()
+            .for_each(|rfe| rfe.apply_force(&body_part, bodies));
     }
 
     pub fn update(&mut self, colliders: &DefaultColliderSet<f32>) {
         self.base_frame.update(colliders);
-
-        //        self.rf_engines_mut()
-        //            .iter_mut()
-        //            .for_each(|rfe| rfe.update(colliders));
     }
 
     pub fn draw_vectors(&mut self, colliders: &DefaultColliderSet<f32>, win: &mut Window) {
-        //        self.rf_engines()
-        //            .iter()
-        //            .for_each(|rfe| rfe.draw_force_vector(colliders, win));
+        let body_pos = colliders
+            .get(*self.base_frame.collider())
+            .unwrap()
+            .position();
+
+        self.rf_engines()
+            .iter()
+            .for_each(|rfe| rfe.draw_force_vector(body_pos, win));
     }
 
-    //    fn rf_engines(&mut self) -> [&RfEngine; 4] {
-    //        [&self.rfe_fl, &self.rfe_fr, &self.rfe_rl, &self.rfe_rr]
-    //    }
-    //
-    //    fn rf_engines_mut(&mut self) -> [&mut RfEngine; 4] {
-    //        [
-    //            &mut self.rfe_fl,
-    //            &mut self.rfe_fr,
-    //            &mut self.rfe_rl,
-    //            &mut self.rfe_rr,
-    //        ]
-    //    }
+    fn rf_engines(&mut self) -> [&RfEngine; 4] {
+        [&self.rfe_fl, &self.rfe_fr, &self.rfe_rl, &self.rfe_rr]
+    }
 }

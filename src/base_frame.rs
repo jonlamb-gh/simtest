@@ -6,8 +6,8 @@ use nphysics3d::object::{
 };
 
 pub struct BaseFrame {
-    pub body_part: BodyPartHandle<DefaultBodyHandle>,
-    pub collider: DefaultColliderHandle,
+    body_part: BodyPartHandle<DefaultBodyHandle>,
+    collider: DefaultColliderHandle,
     node: SceneNode,
 }
 
@@ -22,6 +22,14 @@ impl BaseFrame {
             collider,
             node,
         }
+    }
+
+    pub fn body_part(&self) -> &BodyPartHandle<DefaultBodyHandle> {
+        &self.body_part
+    }
+
+    pub fn collider(&self) -> &DefaultColliderHandle {
+        &self.collider
     }
 
     pub fn update(&mut self, colliders: &DefaultColliderSet<f32>) {
