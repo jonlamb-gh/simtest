@@ -6,10 +6,11 @@ use nphysics3d::object::{DefaultColliderHandle, DefaultColliderSet};
 pub fn build_scene_node(
     collider: DefaultColliderHandle,
     colliders: &DefaultColliderSet<f32>,
-    extents: Vector3<f32>,
+    half_extents: Vector3<f32>,
     color: Point3<f32>,
     window: &mut Window,
 ) -> SceneNode {
+    let extents = half_extents * 2.0;
     let mut node = window.add_cube(extents.x, extents.y, extents.z);
     node.set_color(color.x, color.y, color.z);
     node.set_local_transformation(*colliders.get(collider).unwrap().position());
