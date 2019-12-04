@@ -1,16 +1,27 @@
 use crate::box_node::update_scene_node;
 use crate::na::Vector3;
 use kiss3d::scene::SceneNode;
-use nphysics3d::object::{DefaultColliderHandle, DefaultColliderSet};
+use nphysics3d::object::{
+    BodyPartHandle, DefaultBodyHandle, DefaultColliderHandle, DefaultColliderSet,
+};
 
 pub struct BaseFrame {
-    collider: DefaultColliderHandle,
+    pub body_part: BodyPartHandle<DefaultBodyHandle>,
+    pub collider: DefaultColliderHandle,
     node: SceneNode,
 }
 
 impl BaseFrame {
-    pub fn new(collider: DefaultColliderHandle, node: SceneNode) -> Self {
-        BaseFrame { collider, node }
+    pub fn new(
+        body_part: BodyPartHandle<DefaultBodyHandle>,
+        collider: DefaultColliderHandle,
+        node: SceneNode,
+    ) -> Self {
+        BaseFrame {
+            body_part,
+            collider,
+            node,
+        }
     }
 
     pub fn update(&mut self, colliders: &DefaultColliderSet<f32>) {
