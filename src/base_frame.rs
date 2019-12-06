@@ -28,9 +28,9 @@ impl BaseFrame {
         &self.body_part
     }
 
-    pub fn collider(&self) -> &DefaultColliderHandle {
-        &self.collider
-    }
+    //pub fn collider(&self) -> &DefaultColliderHandle {
+    //    &self.collider
+    //}
 
     pub fn update(&mut self, colliders: &DefaultColliderSet<f32>) {
         update_scene_node(self.collider, colliders, &mut self.node);

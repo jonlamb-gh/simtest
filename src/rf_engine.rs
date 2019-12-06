@@ -2,7 +2,7 @@ use crate::na::{Point3, Vector3};
 use kiss3d::window::Window;
 use nphysics3d::algebra::ForceType;
 use nphysics3d::math::{Force, Isometry};
-use nphysics3d::object::{BodyPartHandle, DefaultBodyHandle, DefaultBodySet};
+use nphysics3d::object::{Body, RigidBody};
 
 pub struct RfEngine {
     pos_wrt_parent: Vector3<f32>,
@@ -33,15 +33,10 @@ impl RfEngine {
         self.force = local_force;
     }
 
-    pub fn apply_force(
-        &self,
-        body_part: &BodyPartHandle<DefaultBodyHandle>,
-        bodies: &mut DefaultBodySet<f32>,
-    ) {
+    pub fn apply_force(&self, body: &mut RigidBody<f32>) {
         let point = Point3::from(*self.pos_wrt_parent());
-        let body = bodies.get_mut(body_part.0).unwrap();
         body.apply_local_force_at_local_point(
-            body_part.1,
+            0,
             &self.force.linear,
             &point,
             ForceType::Force,

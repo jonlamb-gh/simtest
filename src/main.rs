@@ -1,16 +1,8 @@
-//mod controller;
-mod base_frame;
-mod box_node;
-mod config;
-mod ground;
-mod platform;
-mod rf_engine;
-mod util;
-
 use nalgebra as na;
 
-//use crate::controller::{Controller, Inputs, Outputs};
+use crate::controller::Controller;
 use crate::ground::Ground;
+use crate::inputs::Inputs;
 use crate::na::{Point3, Vector3};
 use crate::platform::Platform;
 use kiss3d::camera::{ArcBall, Camera};
@@ -23,8 +15,19 @@ use nphysics3d::joint::DefaultJointConstraintSet;
 use nphysics3d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics3d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
+mod base_frame;
+mod box_node;
+mod config;
+mod controller;
+mod ground;
+mod inputs;
+mod platform;
+mod rf_engine;
+mod util;
+
 struct AppState {
-    //controller: Controller,
+    inputs: Inputs,
+    controller: Controller,
     arc_ball: ArcBall,
     mechanical_world: DefaultMechanicalWorld<f32>,
     geometrical_world: DefaultGeometricalWorld<f32>,
@@ -38,7 +41,8 @@ struct AppState {
 
 impl AppState {
     fn new(window: &mut Window) -> Self {
-        //let controller = Controller::new();
+        let inputs = Inputs::new();
+        let controller = Controller::new();
 
         let arc_ball = ArcBall::new(Point3::new(-5.0, 5.0, -5.0), Point3::new(0.0, 0.0, 0.0));
 
@@ -55,7 +59,8 @@ impl AppState {
         let platform = Platform::new(&mut bodies, &mut colliders, window);
 
         let mut app = AppState {
-            //controller,
+            inputs,
+            controller,
             arc_ball,
             mechanical_world,
             geometrical_world,
@@ -94,18 +99,18 @@ impl State for AppState {
 
     fn step(&mut self, win: &mut Window) {
         if !win.is_closed() && !win.should_close() {
-            //let p = self.platform.position(&self.world);
-            //let v_world = self.platform.velocity(&self.world);
+            self.inputs.update();
 
-            //let inputs = Inputs {
-            //    rot: p.rotation,
-            //    vel: v_world,
-            //};
+            if self.inputs.aux.reset_all {
+                self.platform.reset_all(&mut self.bodies);
+                self.controller.reset();
+            } else {
+                let sensors = self.platform.sensors(&self.bodies);
 
-            //let outputs = self.controller.update(&inputs);
+                let outputs = self.controller.update(&self.inputs.set_points, &sensors);
 
-            self.platform
-                .apply_forces(&mut self.bodies, &self.colliders);
+                self.platform.apply_forces(outputs, &mut self.bodies);
+            }
 
             self.mechanical_world.step(
                 &mut self.geometrical_world,
@@ -135,7 +140,7 @@ impl State for AppState {
 
             self.platform.update(&self.colliders);
 
-            self.platform.draw_vectors(&self.colliders, win);
+            self.platform.draw_vectors(&self.bodies, win);
         }
     }
 }

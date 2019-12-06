@@ -1,12 +1,12 @@
 use crate::base_frame::BaseFrame;
 use crate::box_node::build_scene_node;
+use crate::controller::{Outputs, Sensors};
 use crate::na::{Point3, Vector3};
 use crate::rf_engine::RfEngine;
 use kiss3d::window;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};
-use nphysics3d::math::Force;
-use nphysics3d::object::Body;
+use nphysics3d::math::{Isometry, Velocity};
 use nphysics3d::object::{
     BodyPartHandle, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
 };
@@ -19,6 +19,8 @@ pub struct Platform {
     rfe_rr: RfEngine,
 }
 
+const START_POS_Y: f32 = 2.0;
+
 impl Platform {
     pub fn new(
         bodies: &mut DefaultBodySet<f32>,
@@ -26,7 +28,7 @@ impl Platform {
         window: &mut window::Window,
     ) -> Self {
         // TODO - configs
-        let start_y = 2.0;
+        //let start_y = START_POS_Y;
         let density = 1.0;
         let platform_mass = 10.0;
         // angular_inertia
@@ -34,12 +36,13 @@ impl Platform {
         let base_shape = ShapeHandle::new(Cuboid::new(BaseFrame::size()));
         let body_collider = ColliderDesc::new(base_shape).density(density);
         let body = RigidBodyDesc::new()
-            .translation(Vector3::new(0.0, start_y, 0.0))
+            .translation(Vector3::new(0.0, START_POS_Y, 0.0))
             .mass(platform_mass)
             .gravity_enabled(false);
 
-        let mut platform = body.build();
-        platform.enable_gravity(false);
+        let platform = body.build();
+        //platform.enable_gravity(false);
+        //platform.set_angular_velocity(Vector3::new(0.0, 0.0, 1.0));
         let base_handle = bodies.insert(platform);
 
         let body_part = BodyPartHandle(base_handle, 0);
@@ -73,30 +76,46 @@ impl Platform {
         }
     }
 
-    pub fn apply_forces(
-        &mut self,
-        bodies: &mut DefaultBodySet<f32>,
-        _colliders: &DefaultColliderSet<f32>,
-    ) {
-        // TODO
-        let force = Force::linear(Vector3::new(0.0, 1.0, 0.0));
-        self.rfe_fr.set_force(force);
+    pub fn reset_all(&mut self, bodies: &mut DefaultBodySet<f32>) {
+        // TODO - reset dynamics
+        let body_part = self.base_frame.body_part();
+        let body = bodies.rigid_body_mut(body_part.0).unwrap();
 
-        let body_part = *self.base_frame.body_part();
+        body.set_velocity(Velocity::zero());
+        body.set_position(Isometry::translation(0.0, START_POS_Y, 0.0));
+    }
+
+    pub fn sensors(&self, bodies: &DefaultBodySet<f32>) -> Sensors {
+        let body_part = self.base_frame.body_part();
+        let body = bodies.rigid_body(body_part.0).unwrap();
+        Sensors {
+            iso: *body.position(),
+            vel: *body.velocity(),
+        }
+    }
+
+    pub fn apply_forces(&mut self, controller_outputs: &Outputs, bodies: &mut DefaultBodySet<f32>) {
+        self.rfe_fl.set_force(controller_outputs.rfe_fl_force);
+        self.rfe_fr.set_force(controller_outputs.rfe_fr_force);
+        self.rfe_rl.set_force(controller_outputs.rfe_rl_force);
+        self.rfe_rr.set_force(controller_outputs.rfe_rr_force);
+
+        let body_part = self.base_frame.body_part();
+        let body = bodies.rigid_body_mut(body_part.0).unwrap();
+
         self.rf_engines()
             .iter()
-            .for_each(|rfe| rfe.apply_force(&body_part, bodies));
+            .for_each(|rfe| rfe.apply_force(body));
     }
 
     pub fn update(&mut self, colliders: &DefaultColliderSet<f32>) {
         self.base_frame.update(colliders);
     }
 
-    pub fn draw_vectors(&mut self, colliders: &DefaultColliderSet<f32>, win: &mut Window) {
-        let body_pos = colliders
-            .get(*self.base_frame.collider())
-            .unwrap()
-            .position();
+    pub fn draw_vectors(&mut self, bodies: &DefaultBodySet<f32>, win: &mut Window) {
+        let body_part = self.base_frame.body_part();
+        let body = bodies.rigid_body(body_part.0).unwrap();
+        let body_pos = body.position();
 
         self.rf_engines()
             .iter()
