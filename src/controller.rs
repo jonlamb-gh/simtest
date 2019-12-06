@@ -102,13 +102,18 @@ impl Controller {
         self.outputs.rfe_rr_force.linear.x += rear_thrust / 2.0;
     }
 
-    // TODO - need to rotate/transform the angular_rate vector
     fn distribute_rotational_thrust(&mut self, set_points: &SetPoints, sensors: &Sensors) {
+        let aligned_angular_velocity = sensors
+            .iso
+            .rotation
+            .inverse()
+            .transform_vector(&sensors.vel.angular);
+
         // Rx, roll rate
         self.pid_rx.setpoint = set_points.angular_velocity.x;
         let rx_output = self
             .pid_rx
-            .next_control_output(sensors.vel.angular.x)
+            .next_control_output(aligned_angular_velocity.x)
             .output;
         self.outputs.rfe_fl_force.linear.y += rx_output / 2.0;
         self.outputs.rfe_fr_force.linear.y += -rx_output / 2.0;
@@ -117,7 +122,7 @@ impl Controller {
         self.pid_ry.setpoint = set_points.angular_velocity.y;
         let ry_output = self
             .pid_ry
-            .next_control_output(sensors.vel.angular.y)
+            .next_control_output(aligned_angular_velocity.y)
             .output;
         self.outputs.rfe_fl_force.linear.z += -ry_output / 2.0;
         self.outputs.rfe_fr_force.linear.z += -ry_output / 2.0;
@@ -130,7 +135,7 @@ impl Controller {
         self.pid_rz.setpoint = set_points.angular_velocity.z;
         let rz_output = self
             .pid_rz
-            .next_control_output(sensors.vel.angular.z)
+            .next_control_output(aligned_angular_velocity.z)
             .output;
         self.outputs.rfe_fl_force.linear.y += rz_output / 2.0;
         self.outputs.rfe_fr_force.linear.y += rz_output / 2.0;

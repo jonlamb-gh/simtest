@@ -23,6 +23,8 @@ pub struct Inputs {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct AuxControls {
     pub reset_all: bool,
+    // TODO - enum toggle
+    pub view_mode: bool,
 }
 
 impl Inputs {
@@ -47,6 +49,10 @@ impl Inputs {
             let input = self.ctx.gamepad(id);
 
             self.aux.reset_all = input.is_pressed(Button::South);
+            if input.is_pressed(Button::West) {
+                self.aux.view_mode = !self.aux.view_mode;
+                println!("view mode {}", self.aux.view_mode);
+            }
 
             let f_neg = if let Some(btn) = input.button_data(Button::LeftTrigger2) {
                 btn.value()

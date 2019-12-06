@@ -101,16 +101,11 @@ impl State for AppState {
         if !win.is_closed() && !win.should_close() {
             self.inputs.update();
 
-            if self.inputs.aux.reset_all {
-                self.platform.reset_all(&mut self.bodies);
-                self.controller.reset();
-            } else {
-                let sensors = self.platform.sensors(&self.bodies);
+            let sensors = self.platform.sensors(&self.bodies);
 
-                let outputs = self.controller.update(&self.inputs.set_points, &sensors);
+            let outputs = self.controller.update(&self.inputs.set_points, &sensors);
 
-                self.platform.apply_forces(outputs, &mut self.bodies);
-            }
+            self.platform.apply_forces(outputs, &mut self.bodies);
 
             self.mechanical_world.step(
                 &mut self.geometrical_world,
@@ -121,19 +116,21 @@ impl State for AppState {
             );
 
             // TODO
-            if true == true {
-                //self.arc_ball.set_at(Point3::new(
-                //    p.translation.x,
-                //    p.translation.y,
-                //    p.translation.z,
-                //));
+            if !self.inputs.aux.view_mode {
+                self.arc_ball.set_at(Point3::new(
+                    sensors.iso.translation.x,
+                    sensors.iso.translation.y,
+                    sensors.iso.translation.z,
+                ));
             } else {
                 //self.arc_ball.look_at(
-                //    Point3::new(-5.0, 5.0, -5.0),
-                //    Point3::new(p.translation.x, p.translation.y, p.translation.z),
+                //Point3::new(-5.0, 5.0, -5.0),
+                //Point3::new(
+                //    sensors.iso.translation.x,
+                //    sensors.iso.translation.y,
+                //    sensors.iso.translation.z,
+                //),
                 //);
-                self.arc_ball
-                    .look_at(Point3::new(-5.0, 5.0, -5.0), Point3::new(0.0, 0.0, 0.0));
             }
 
             self.ground.update(&self.colliders);
@@ -141,6 +138,11 @@ impl State for AppState {
             self.platform.update(&self.colliders);
 
             self.platform.draw_vectors(&self.bodies, win);
+
+            if self.inputs.aux.reset_all {
+                self.platform.reset_all(&mut self.bodies);
+                self.controller.reset();
+            }
         }
     }
 }
