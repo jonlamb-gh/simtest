@@ -1,7 +1,7 @@
 use crate::controller::SetPoints;
 use crate::na::Vector3;
 use crate::util::{clamp, map_range};
-use gilrs::{Axis, Button, Event, Gilrs};
+use gilrs::{Axis, Button, Event, EventType, Gilrs};
 
 // Units =
 const MAX_LONG_FORCE: f32 = 10.0;
@@ -23,8 +23,20 @@ pub struct Inputs {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct AuxControls {
     pub reset_all: bool,
-    // TODO - enum toggle
-    pub view_mode: bool,
+    pub view_mode: ViewMode,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum ViewMode {
+    Static,
+    LookAt,
+    Follow,
+}
+
+impl Default for ViewMode {
+    fn default() -> Self {
+        ViewMode::Static
+    }
 }
 
 impl Inputs {
@@ -40,18 +52,21 @@ impl Inputs {
     }
 
     pub fn update(&mut self) {
-        if let Some(Event {
-            id,
-            event: _,
-            time: _,
-        }) = self.ctx.next_event()
-        {
+        if let Some(Event { id, event, time: _ }) = self.ctx.next_event() {
             let input = self.ctx.gamepad(id);
 
             self.aux.reset_all = input.is_pressed(Button::South);
-            if input.is_pressed(Button::West) {
-                self.aux.view_mode = !self.aux.view_mode;
-                println!("view mode {}", self.aux.view_mode);
+
+            match event {
+                EventType::ButtonPressed(Button::West, _) => {
+                    self.aux.view_mode = match self.aux.view_mode {
+                        ViewMode::Static => ViewMode::LookAt,
+                        ViewMode::LookAt => ViewMode::Follow,
+                        ViewMode::Follow => ViewMode::Static,
+                    };
+                    println!("view mode {:?}", self.aux.view_mode);
+                }
+                _ => (),
             }
 
             let f_neg = if let Some(btn) = input.button_data(Button::LeftTrigger2) {

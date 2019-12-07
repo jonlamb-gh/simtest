@@ -2,7 +2,7 @@ use nalgebra as na;
 
 use crate::controller::Controller;
 use crate::ground::Ground;
-use crate::inputs::Inputs;
+use crate::inputs::{Inputs, ViewMode};
 use crate::na::{Point3, Vector3};
 use crate::platform::Platform;
 use kiss3d::camera::{ArcBall, Camera};
@@ -115,22 +115,25 @@ impl State for AppState {
                 &mut self.forces,
             );
 
-            // TODO
-            if !self.inputs.aux.view_mode {
-                self.arc_ball.set_at(Point3::new(
-                    sensors.iso.translation.x,
-                    sensors.iso.translation.y,
-                    sensors.iso.translation.z,
-                ));
-            } else {
-                //self.arc_ball.look_at(
-                //Point3::new(-5.0, 5.0, -5.0),
-                //Point3::new(
-                //    sensors.iso.translation.x,
-                //    sensors.iso.translation.y,
-                //    sensors.iso.translation.z,
-                //),
-                //);
+            match self.inputs.aux.view_mode {
+                ViewMode::Static => (),
+                ViewMode::LookAt => {
+                    self.arc_ball.set_at(Point3::new(
+                        sensors.iso.translation.x,
+                        sensors.iso.translation.y,
+                        sensors.iso.translation.z,
+                    ));
+                }
+                ViewMode::Follow => {
+                    self.arc_ball.look_at(
+                        Point3::new(-5.0, 5.0, -5.0),
+                        Point3::new(
+                            sensors.iso.translation.x,
+                            sensors.iso.translation.y,
+                            sensors.iso.translation.z,
+                        ),
+                    );
+                }
             }
 
             self.ground.update(&self.colliders);
@@ -155,5 +158,5 @@ fn main() {
 
     let state = AppState::new(&mut window);
 
-    window.render_loop(state)
+    window.render_loop(state);
 }
