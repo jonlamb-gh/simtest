@@ -3,9 +3,8 @@ use crate::na::Vector3;
 use crate::util::{clamp, map_range};
 use gilrs::{Axis, Button, Event, EventType, Gilrs};
 
-// Units =
-const MAX_LONG_FORCE: f32 = 100.0;
-const MAX_VERT_FORCE: f32 = 20.0;
+// Units = meters/second
+const MAX_LINEAR_VEL: f32 = 10.0;
 
 // Units = degrees/second
 // Converted to radians locally
@@ -47,8 +46,7 @@ impl Inputs {
             ctx: Gilrs::new().unwrap(),
             set_points: SetPoints {
                 angular_velocity: Vector3::zeros(),
-                longitudinal_force: 0.0,
-                vertical_force: 0.0,
+                linear_velocity: Vector3::zeros(),
             },
             aux: AuxControls::default(),
         }
@@ -85,15 +83,16 @@ impl Inputs {
                 0.0
             };
 
-            self.set_points.longitudinal_force = map_range(
+            self.set_points.linear_velocity.z = 0.0;
+            self.set_points.linear_velocity.x = map_range(
                 (-1.0, 1.0),
-                (-MAX_LONG_FORCE, MAX_LONG_FORCE),
+                (-MAX_LINEAR_VEL, MAX_LINEAR_VEL),
                 f_pos - f_neg,
             );
 
-            self.set_points.vertical_force = map_range(
+            self.set_points.linear_velocity.y = map_range(
                 (-1.0, 1.0),
-                (-MAX_VERT_FORCE, MAX_VERT_FORCE),
+                (-MAX_LINEAR_VEL, MAX_LINEAR_VEL),
                 input.value(Axis::LeftStickY),
             );
 
