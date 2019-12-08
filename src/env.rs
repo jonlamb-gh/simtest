@@ -21,19 +21,19 @@ impl Env {
     ) -> Self {
         // TODO - configs
         let margin = ColliderDesc::<f32>::default_margin();
-        let start_y = 2.0 * margin;
+        let start_y = 4.0 * margin;
         let density = 1.0;
-        let mass = 1.0;
+        let mass = 5.0;
 
         let mut boxes = vec![];
-        let small_rad = 0.5;
+        let small_rad = 1.0;
         let small_half_size = Vector3::repeat(small_rad);
         let small_cuboid = ShapeHandle::new(Cuboid::new(small_half_size));
 
         for x in &[-35, -25, -15, -5, 15, 25, 35] {
             for y in &[-35, -25, -15, -5, 15, 25, 35] {
-                for h in 0..5 {
-                    let delta_y = 2.0 * (small_rad + margin) + 0.3;
+                for h in 0..4 {
+                    let delta_y = 2.0 * (small_rad + margin) + 0.6;
                     let body = RigidBodyDesc::new()
                         .translation(Vector3::new(
                             *x as _,

@@ -4,7 +4,7 @@ use crate::util::{clamp, map_range};
 use gilrs::{Axis, Button, Event, EventType, Gilrs};
 
 // Units =
-const MAX_LONG_FORCE: f32 = 50.0;
+const MAX_LONG_FORCE: f32 = 100.0;
 const MAX_VERT_FORCE: f32 = 20.0;
 
 // Units = degrees/second
