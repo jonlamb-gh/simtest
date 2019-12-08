@@ -7,11 +7,14 @@ use crate::na::Vector3;
 use nphysics3d::math::{Force, Isometry, Velocity};
 use pid::Pid;
 
+#[derive(Debug)]
 pub struct SetPoints {
     pub angular_velocity: Vector3<f32>,
     pub longitudinal_force: f32,
+    pub vertical_force: f32,
 }
 
+#[derive(Debug)]
 pub struct Sensors {
     // NOTE: only need the .rotation UnitQuaternion
     /// Position and orientation/rotation of the platform's RigidBody
@@ -22,6 +25,7 @@ pub struct Sensors {
 }
 
 /// Forces relative to the platform's frame
+#[derive(Debug)]
 pub struct Outputs {
     pub rfe_fl_force: Force<f32>,
     pub rfe_fr_force: Force<f32>,
@@ -37,20 +41,20 @@ pub struct Controller {
     outputs: Outputs,
 }
 
-const KP_X: f32 = 5.0;
+const KP_X: f32 = 1.0;
 const KI_X: f32 = 0.0;
 const KD_X: f32 = 0.0;
-const LIMIT_X: f32 = 10.0;
+const LIMIT_X: f32 = 1.0;
 
-const KP_Y: f32 = 5.0;
+const KP_Y: f32 = 1.0;
 const KI_Y: f32 = 0.0;
 const KD_Y: f32 = 0.0;
-const LIMIT_Y: f32 = 10.0;
+const LIMIT_Y: f32 = 1.0;
 
-const KP_Z: f32 = 5.0;
+const KP_Z: f32 = 1.0;
 const KI_Z: f32 = 0.0;
 const KD_Z: f32 = 0.0;
-const LIMIT_Z: f32 = 10.0;
+const LIMIT_Z: f32 = 1.0;
 
 impl Controller {
     pub fn new() -> Self {
@@ -86,6 +90,8 @@ impl Controller {
 
         self.distribute_longitudinal_thrust(set_points);
 
+        self.distribute_vertical_thrust(set_points);
+
         self.distribute_rotational_thrust(set_points, sensors);
 
         &self.outputs
@@ -100,6 +106,15 @@ impl Controller {
 
         self.outputs.rfe_rl_force.linear.x += rear_thrust / 2.0;
         self.outputs.rfe_rr_force.linear.x += rear_thrust / 2.0;
+    }
+
+    fn distribute_vertical_thrust(&mut self, set_points: &SetPoints) {
+        let quarter_thrust = set_points.vertical_force / 4.0;
+
+        self.outputs.rfe_fl_force.linear.y += quarter_thrust;
+        self.outputs.rfe_fr_force.linear.y += quarter_thrust;
+        self.outputs.rfe_rl_force.linear.y += quarter_thrust;
+        self.outputs.rfe_rr_force.linear.y += quarter_thrust;
     }
 
     fn distribute_rotational_thrust(&mut self, set_points: &SetPoints, sensors: &Sensors) {
@@ -117,6 +132,10 @@ impl Controller {
             .output;
         self.outputs.rfe_fl_force.linear.y += rx_output / 2.0;
         self.outputs.rfe_fr_force.linear.y += -rx_output / 2.0;
+        //println!(
+        //    "sp {} -- in {} -- out {}",
+        //    set_points.angular_velocity.x, sensors.vel.angular.x, rx_output
+        //);
 
         // Ry, yaw rate
         self.pid_ry.setpoint = set_points.angular_velocity.y;
@@ -126,10 +145,6 @@ impl Controller {
             .output;
         self.outputs.rfe_fl_force.linear.z += -ry_output / 2.0;
         self.outputs.rfe_fr_force.linear.z += -ry_output / 2.0;
-        //println!(
-        //    "sp {} -- in {} -- out {}",
-        //    set_points.angular_velocity.y, sensors.vel.angular.y, ry_output
-        //);
 
         // Rz, pitch rate
         self.pid_rz.setpoint = set_points.angular_velocity.z;

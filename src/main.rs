@@ -1,6 +1,7 @@
 use nalgebra as na;
 
 use crate::controller::Controller;
+use crate::env::Env;
 use crate::ground::Ground;
 use crate::inputs::{Inputs, ViewMode};
 use crate::na::{Point3, Vector3};
@@ -19,6 +20,7 @@ mod base_frame;
 mod box_node;
 mod config;
 mod controller;
+mod env;
 mod ground;
 mod inputs;
 mod platform;
@@ -37,6 +39,7 @@ struct AppState {
     forces: DefaultForceGeneratorSet<f32>,
     ground: Ground,
     platform: Platform,
+    env: Env,
 }
 
 impl AppState {
@@ -58,6 +61,8 @@ impl AppState {
 
         let platform = Platform::new(&mut bodies, &mut colliders, window);
 
+        let env = Env::new(&mut bodies, &mut colliders, window);
+
         let mut app = AppState {
             inputs,
             controller,
@@ -70,6 +75,7 @@ impl AppState {
             forces: force_generators,
             ground,
             platform,
+            env,
         };
 
         // panics when apply forces if initial step isn't done?
@@ -102,9 +108,11 @@ impl State for AppState {
             self.inputs.update();
 
             let sensors = self.platform.sensors(&self.bodies);
+            //println!("{:#?}", self.inputs.set_points);
+            //println!("{:#?}", sensors);
 
             let outputs = self.controller.update(&self.inputs.set_points, &sensors);
-
+            //println!("{:#?}", outputs);
             self.platform.apply_forces(outputs, &mut self.bodies);
 
             self.mechanical_world.step(
@@ -117,14 +125,14 @@ impl State for AppState {
 
             match self.inputs.aux.view_mode {
                 ViewMode::Static => (),
-                ViewMode::LookAt => {
+                ViewMode::Follow => {
                     self.arc_ball.set_at(Point3::new(
                         sensors.iso.translation.x,
                         sensors.iso.translation.y,
                         sensors.iso.translation.z,
                     ));
                 }
-                ViewMode::Follow => {
+                ViewMode::LookAt => {
                     self.arc_ball.look_at(
                         Point3::new(-5.0, 5.0, -5.0),
                         Point3::new(
@@ -134,17 +142,32 @@ impl State for AppState {
                         ),
                     );
                 }
+                // TODO - use FirstPerson camera instead of arcball
+                ViewMode::FirstPerson => {
+                    // Position of camera relative to the platform
+                    let cam_rel_pos = Vector3::new(0.0, 0.25, 0.0);
+                    let cam_pos = sensors.iso.translation.vector
+                        + sensors.iso.rotation.transform_vector(&cam_rel_pos);
+                    let look_at_rel = Vector3::new(10.0, 0.0, 0.0);
+                    let look_at = sensors.iso.translation.vector
+                        + sensors.iso.rotation.transform_vector(&look_at_rel);
+                    self.arc_ball
+                        .look_at(Point3::from(cam_pos), Point3::from(look_at));
+                }
             }
 
             self.ground.update(&self.colliders);
 
             self.platform.update(&self.colliders);
 
+            self.env.update(&self.colliders);
+
             self.platform.draw_vectors(&self.bodies, win);
 
             if self.inputs.aux.reset_all {
                 self.platform.reset_all(&mut self.bodies);
                 self.controller.reset();
+                // TODO - reset env
             }
         }
     }

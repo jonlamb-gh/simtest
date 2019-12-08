@@ -19,14 +19,15 @@ impl Ground {
         colliders: &mut DefaultColliderSet<f32>,
         window: &mut window::Window,
     ) -> Self {
-        let ground_shape = ShapeHandle::new(Cuboid::new(Self::size()));
+        let half_size = Self::size() / 2.0;
+        let ground_shape = ShapeHandle::new(Cuboid::new(half_size));
         let ground_handle = bodies.insert(GroundObj::new());
 
         let co = ColliderDesc::new(ground_shape)
             .translation(Vector3::y() * -Self::size().y)
             .build(BodyPartHandle(ground_handle, 0));
         let margin = co.margin();
-        let half_extents = (Self::size() / 2.0) + Vector3::repeat(margin);
+        let half_extents = half_size + Vector3::repeat(margin);
         let collider = colliders.insert(co);
 
         let color = Point3::new(1.0, 1.0, 1.0);

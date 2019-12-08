@@ -4,7 +4,8 @@ use crate::util::{clamp, map_range};
 use gilrs::{Axis, Button, Event, EventType, Gilrs};
 
 // Units =
-const MAX_LONG_FORCE: f32 = 10.0;
+const MAX_LONG_FORCE: f32 = 20.0;
+const MAX_VERT_FORCE: f32 = 10.0;
 
 // Units = degrees/second
 // Converted to radians locally
@@ -31,6 +32,7 @@ pub enum ViewMode {
     Static,
     LookAt,
     Follow,
+    FirstPerson,
 }
 
 impl Default for ViewMode {
@@ -46,6 +48,7 @@ impl Inputs {
             set_points: SetPoints {
                 angular_velocity: Vector3::zeros(),
                 longitudinal_force: 0.0,
+                vertical_force: 0.0,
             },
             aux: AuxControls::default(),
         }
@@ -62,7 +65,8 @@ impl Inputs {
                     self.aux.view_mode = match self.aux.view_mode {
                         ViewMode::Static => ViewMode::LookAt,
                         ViewMode::LookAt => ViewMode::Follow,
-                        ViewMode::Follow => ViewMode::Static,
+                        ViewMode::Follow => ViewMode::FirstPerson,
+                        ViewMode::FirstPerson => ViewMode::Static,
                     };
                     println!("view mode {:?}", self.aux.view_mode);
                 }
@@ -85,6 +89,12 @@ impl Inputs {
                 (-1.0, 1.0),
                 (-MAX_LONG_FORCE, MAX_LONG_FORCE),
                 f_pos - f_neg,
+            );
+
+            self.set_points.vertical_force = map_range(
+                (-1.0, 1.0),
+                (-MAX_VERT_FORCE, MAX_VERT_FORCE),
+                input.value(Axis::LeftStickY),
             );
 
             self.set_points.angular_velocity.x = map_range(
