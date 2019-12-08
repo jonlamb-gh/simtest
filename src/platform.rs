@@ -29,7 +29,7 @@ impl Platform {
         // TODO - configs
         //let start_y = START_POS_Y;
         let density = 1.0;
-        let platform_mass = 50.0;
+        let platform_mass = 80.0;
         // angular_inertia
 
         let base_half_size = BaseFrame::size() / 2.0;

@@ -18,6 +18,7 @@ use nphysics3d::world::{DefaultGeometricalWorld, DefaultMechanicalWorld};
 
 mod base_frame;
 mod box_node;
+mod colors;
 mod config;
 mod controller;
 mod env;
@@ -47,7 +48,7 @@ impl AppState {
         let inputs = Inputs::new();
         let controller = Controller::new();
 
-        let arc_ball = ArcBall::new(Point3::new(-5.0, 5.0, -5.0), Point3::new(0.0, 0.0, 0.0));
+        let arc_ball = ArcBall::new(Point3::new(-5.1, 5.0, -2.0), Point3::new(0.0, 0.0, 0.0));
 
         // TODO - configs
         let mechanical_world = DefaultMechanicalWorld::new(Vector3::new(0.0, -9.81, 0.0));
@@ -126,15 +127,28 @@ impl State for AppState {
             match self.inputs.aux.view_mode {
                 ViewMode::Static => (),
                 ViewMode::Follow => {
-                    self.arc_ball.set_at(Point3::new(
-                        sensors.iso.translation.x,
-                        sensors.iso.translation.y,
-                        sensors.iso.translation.z,
-                    ));
+                    let cam_rel_pos = Vector3::new(-10.0, 0.0, 0.0);
+                    let mut cam_pos = sensors.iso.translation.vector
+                        + sensors.iso.rotation.transform_vector(&cam_rel_pos);
+                    cam_pos.y = 10.0;
+
+                    self.arc_ball.look_at(
+                        Point3::from(cam_pos),
+                        Point3::from(sensors.iso.translation.vector),
+                    );
+
+                    //self.arc_ball.set_at(Point3::new(
+                    //    sensors.iso.translation.x,
+                    //    sensors.iso.translation.y,
+                    //    sensors.iso.translation.z,
+                    //));
+
+                    // set_dist
+                    //self.arc_ball.set_yaw(sensors.iso.rotation.euler_angles().2);
                 }
                 ViewMode::LookAt => {
                     self.arc_ball.look_at(
-                        Point3::new(-5.0, 5.0, -5.0),
+                        Point3::new(-10.1, 10.0, -2.0),
                         Point3::new(
                             sensors.iso.translation.x,
                             sensors.iso.translation.y,
