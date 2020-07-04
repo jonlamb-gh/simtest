@@ -1,6 +1,6 @@
 use crate::box_node::{build_scene_node, update_scene_node};
 use crate::colors::Colors;
-use crate::na::{Point3, Vector3};
+use crate::na::Vector3;
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 use ncollide3d::shape::{Cuboid, ShapeHandle};

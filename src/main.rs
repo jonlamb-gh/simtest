@@ -127,10 +127,10 @@ impl State for AppState {
             match self.inputs.aux.view_mode {
                 ViewMode::Static => (),
                 ViewMode::Follow => {
-                    let cam_rel_pos = Vector3::new(-10.0, 0.0, 0.0);
+                    let cam_rel_pos = Vector3::new(-self.inputs.aux.camera_distance, 0.0, 0.0);
                     let mut cam_pos = sensors.iso.translation.vector
                         + sensors.iso.rotation.transform_vector(&cam_rel_pos);
-                    cam_pos.y = 10.0;
+                    cam_pos.y = self.inputs.aux.camera_height;
 
                     self.arc_ball.look_at(
                         Point3::from(cam_pos),
@@ -148,7 +148,11 @@ impl State for AppState {
                 }
                 ViewMode::LookAt => {
                     self.arc_ball.look_at(
-                        Point3::new(-10.1, 10.0, -2.0),
+                        Point3::new(
+                            -self.inputs.aux.camera_distance,
+                            self.inputs.aux.camera_height,
+                            0.0,
+                        ),
                         Point3::new(
                             sensors.iso.translation.x,
                             sensors.iso.translation.y,

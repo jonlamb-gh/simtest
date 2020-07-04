@@ -18,12 +18,24 @@ pub struct Inputs {
     pub aux: AuxControls,
 }
 
-// TODO reset/etc
-// view_mode, look-at/follow/etc, buttons
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub struct AuxControls {
     pub reset_all: bool,
     pub view_mode: ViewMode,
+    // Used by ViewMode::LookAt and ViewMode::Follow
+    pub camera_height: f32,
+    pub camera_distance: f32,
+}
+
+impl Default for AuxControls {
+    fn default() -> Self {
+        AuxControls {
+            reset_all: false,
+            view_mode: ViewMode::default(),
+            camera_height: 10.0,
+            camera_distance: 10.1,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -58,6 +70,8 @@ impl Inputs {
 
             self.aux.reset_all = input.is_pressed(Button::South);
 
+            // TODO - adding these made debug builds run really bad?
+            // maybe just pull from the input cache?
             match event {
                 EventType::ButtonPressed(Button::West, _) => {
                     self.aux.view_mode = match self.aux.view_mode {
@@ -67,6 +81,18 @@ impl Inputs {
                         ViewMode::FirstPerson => ViewMode::Static,
                     };
                     println!("view mode {:?}", self.aux.view_mode);
+                }
+                EventType::ButtonPressed(Button::DPadUp, _) => {
+                    self.aux.camera_height = clamp(self.aux.camera_height + 1.0, 1.0, 25.0);
+                }
+                EventType::ButtonPressed(Button::DPadDown, _) => {
+                    self.aux.camera_height = clamp(self.aux.camera_height - 1.0, 1.0, 25.0);
+                }
+                EventType::ButtonPressed(Button::DPadLeft, _) => {
+                    self.aux.camera_distance = clamp(self.aux.camera_distance - 1.0, 1.0, 25.0);
+                }
+                EventType::ButtonPressed(Button::DPadRight, _) => {
+                    self.aux.camera_distance = clamp(self.aux.camera_distance + 1.0, 1.0, 25.0);
                 }
                 _ => (),
             }
